@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,9 +23,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PageSize
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -34,79 +33,105 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import kotlin.math.roundToInt
 
 /**
  * Composable that displays a carousel of product images with navigation controls.
  */
-// HorizontalPager must be used with the experimental opt-in annotation but has been stabilized
-// in the next available compose version.
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ProductCarousel(
     elements: List<MultimodalElement>,
     onImageClick: (MultimodalElement) -> Unit
 ) {
     val style = ConciergeStyles.productCarouselStyle
-    val pagerState = rememberPagerState(pageCount = { elements.size })
+    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val itemStridePx = with(LocalDensity.current) {
+        (style.imageWidth.toPx() + style.itemSpacing.toPx()).coerceAtLeast(1f)
+    }
+    val currentPage by remember(listState, elements.size, itemStridePx) {
+        derivedStateOf {
+            if (elements.isEmpty()) {
+                0
+            } else {
+                val index = listState.firstVisibleItemIndex
+                val offset = listState.firstVisibleItemScrollOffset
+                (index + (offset / itemStridePx).roundToInt()).coerceIn(0, elements.lastIndex)
+            }
+        }
+    }
+    LaunchedEffect(listState.isScrollInProgress, currentPage, elements.size) {
+        if (!listState.isScrollInProgress && elements.isNotEmpty()) {
+            val needsSnap = listState.firstVisibleItemIndex != currentPage ||
+                listState.firstVisibleItemScrollOffset != 0
+            if (needsSnap) {
+                listState.animateScrollToItem(currentPage)
+            }
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Use a HorizontalPager to show the elements in a carousel
-        HorizontalPager(
-            state = pagerState,
-            pageSize = PageSize.Fixed(style.imageWidth),
-            // Use the image width for the end padding to allow the page indicator to scroll to
-            // the last recommendation in the carousel
+        // Stable LazyRow carousel implementation to avoid experimental pager APIs.
+        LazyRow(
+            state = listState,
             contentPadding = PaddingValues(
                 start = style.horizontalPadding,
                 end = style.imageWidth,
                 top = style.verticalPadding,
                 bottom = style.verticalPadding
             ),
-            pageSpacing = style.itemSpacing,
-            beyondBoundsPageCount = 1,
+            horizontalArrangement = Arrangement.spacedBy(style.itemSpacing),
             modifier = Modifier.fillMaxWidth()
-        ) { page ->
-            ProductImage(
-                element = elements[page],
-                modifier = Modifier
-                    .width(style.imageWidth)
-                    .height(style.imageHeight),
-                onImageClick = onImageClick,
-                isMultiElement = true
-            )
+        ) {
+            itemsIndexed(elements) { _, element ->
+                ProductImage(
+                    element = element,
+                    modifier = Modifier
+                        .width(style.imageWidth)
+                        .height(style.imageHeight),
+                    onImageClick = onImageClick,
+                    isMultiElement = true
+                )
+            }
         }
 
         // Carousel switcher controls
         CarouselSwitcher(
-            currentPage = pagerState.settledPage,
+            currentPage = currentPage,
             totalPages = elements.size,
             onPreviousClick = {
-                if (pagerState.settledPage > 0) {
+                if (currentPage > 0) {
+                    val targetPage = currentPage - 1
                     coroutineScope.launch {
-                        pagerState.animateScrollToPage(pagerState.settledPage - 1)
+                        listState.animateScrollToItem(targetPage)
                     }
                 }
             },
             onNextClick = {
-                if (pagerState.settledPage < elements.size - 1) {
+                if (currentPage < elements.size - 1) {
+                    val targetPage = currentPage + 1
                     coroutineScope.launch {
-                        pagerState.animateScrollToPage(pagerState.settledPage + 1)
+                        listState.animateScrollToItem(targetPage)
                     }
                 }
             },
             onPageClick = { page ->
                 coroutineScope.launch {
-                    pagerState.animateScrollToPage(page)
+                    listState.animateScrollToItem(page)
                 }
             }
         )
