@@ -764,6 +764,48 @@ internal object ConciergeStyles {
         }
 
     /**
+     * Styling for the product card CTA button (e.g. "Buy now")
+     */
+    @Immutable
+    data class ProductCardCtaButtonStyle(
+        val containerTopSpacing: Dp,
+        val shape: Shape,
+        val backgroundColor: Color,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
+        val textStyle: TextStyle,
+        val textColor: Color
+    )
+
+    val productCardCtaButtonStyle: ProductCardCtaButtonStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val ctaLayout = ConciergeTheme.tokens?.cssLayout
+            // Defaults match the "Vertical Card - With description" button spec: 40dp
+            // radius (clamps to a full pill at this height anyway), #BB5811 fill, 12sp/600
+            // label, ~32dp fixed height (approximated via vertical padding since this style has
+            // no dedicated fixed-height concept).
+            val borderRadius = ctaLayout?.productCardCtaButtonBorderRadius?.dp ?: 40.dp
+            val fontWeight = ctaLayout?.productCardCtaButtonFontWeight?.let { FontWeight(it) } ?: FontWeight(600)
+            val fontSize = ctaLayout?.productCardCtaButtonFontSize?.sp ?: 12.sp
+            return ProductCardCtaButtonStyle(
+                // Matches the "info" auto-layout's gap:16px, which the design applies uniformly
+                // between all stacked children (title/subtitle, price/was-price, and the button).
+                containerTopSpacing = 16.dp,
+                shape = RoundedCornerShape(borderRadius),
+                backgroundColor = themeColors.productCardCtaButtonBackground ?: Color(0xFFBB5811),
+                horizontalPadding = ctaLayout?.productCardCtaButtonHorizontalPadding?.dp ?: 16.dp,
+                verticalPadding = ctaLayout?.productCardCtaButtonVerticalPadding?.dp ?: 8.dp,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = fontSize,
+                    fontWeight = fontWeight,
+                    lineHeight = fontSize * 1.4f
+                ),
+                textColor = themeColors.productCardCtaButtonText ?: Color.White
+            )
+        }
+
+    /**
      * Styling for citation items
      */
     @Immutable

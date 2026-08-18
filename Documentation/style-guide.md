@@ -750,6 +750,8 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | `--product-card-badge-text-color` | `cssLayout.productCardBadgeTextColor` | `String` | `"#FFFFFF"` | Badge text color (hex) |
 | `--product-card-badge-background-color` | `cssLayout.productCardBadgeBackgroundColor` | `String` | primary color | Badge background (hex) |
 | `--product-card-was-price-color` | `cssLayout.productCardWasPriceColor` | `String` | `"#6E6E6E"` | "Was" price text color (hex) |
+| `--product-card-cta-button-background-color` | `colors.productCardCtaButton.background` | `String` | `"#BB5811"` | "Buy now" CTA button background color (hex) |
+| `--product-card-cta-button-text-color` | `colors.productCardCtaButton.text` | `String` | `"#FFFFFF"` | "Buy now" CTA button label text color (hex) |
 
 > **Layout value format:** All layout measurements are specified as CSS strings in the JSON theme object (e.g. `"8px"`, `"16px"`) and integer quantities as numeric strings (e.g. `"700"`, `"400"`). The SDK parses these into their internal Kotlin types (`Double` for dp values, `Int` for weights and orders). The **Type** and **Default** columns below reflect the internal representation.
 
@@ -820,6 +822,11 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | `--product-card-text-spacing` | `cssLayout.productCardTextSpacing` | `Double` | `8.0` | Gap between title and subtitle (dp
 | `--product-card-carousel-horizontal-padding` | `cssLayout.productCardCarouselHorizontalPadding` | `Double` | `0.0` | Extra trailing padding (dp) added to the carousel scroll content. Leading inset is always the 16dp base alignment inset only; trailing uses this value (falls back to `--chat-history-padding` when unset). |
 | `--product-card-carousel-spacing` | `cssLayout.productCardCarouselSpacing` | `Double` | `12.0` | Spacing between carousel cards (dp) |
+| `--product-card-cta-button-border-radius` | `cssLayout.productCardCtaButtonBorderRadius` | `Double` | `40.0` | "Buy now" CTA button corner radius (dp) |
+| `--product-card-cta-button-horizontal-padding` | `cssLayout.productCardCtaButtonHorizontalPadding` | `Double` | `16.0` | "Buy now" CTA button horizontal padding (dp) |
+| `--product-card-cta-button-vertical-padding` | `cssLayout.productCardCtaButtonVerticalPadding` | `Double` | `8.0` | "Buy now" CTA button vertical padding (dp). |
+| `--product-card-cta-button-font-size` | `cssLayout.productCardCtaButtonFontSize` | `Double` | `12.0` | "Buy now" CTA button label font size (sp) |
+| `--product-card-cta-button-font-weight` | `cssLayout.productCardCtaButtonFontWeight` | `Int` | `600` | "Buy now" CTA button label font weight |
 
 ### Layout - Buttons
 
@@ -1095,14 +1102,28 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
     "--input-border-radius-mobile": "12px",
     "--button-primary-background": "#1976D2",
     "--button-primary-text": "#FFFFFF",
+    "--button-primary-hover": "#1565C0",
     "--button-secondary-border": "#1976D2",
     "--button-secondary-text": "#1976D2",
+    "--button-secondary-hover": "#E3F2FD",
+    "--color-button-secondary-hover-text": "#1976D2",
     "--button-height-s": "30px",
     "--button-disabled-background": "#E0E0E0",
 
     "--submit-button-fill-color": "#FFFFFF",
     "--submit-button-fill-color-disabled": "#C6C6C6",
     "--color-button-submit": "#1976D2",
+    "--color-button-submit-hover": "#1565C0",
+
+    "--cta-button-background-color": "#EDEDED",
+    "--cta-button-text-color": "#191F1C",
+    "--cta-button-icon-color": "#161313",
+    "--cta-button-border-radius": "99px",
+    "--cta-button-horizontal-padding": "16px",
+    "--cta-button-vertical-padding": "12px",
+    "--cta-button-font-size": "14px",
+    "--cta-button-font-weight": "400",
+    "--cta-button-icon-size": "16px",
 
     "--disclaimer-color": "#757575",
     "--disclaimer-font-size": "12px",
@@ -1133,6 +1154,7 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
     "--citations-text-color": "#000000",
 
     "--feedback-icon-btn-background": "#FFFFFF",
+    "--feedback-icon-btn-hover-background": "#F5F5F5",
     "--feedback-icon-btn-size-desktop": "32px",
     "--feedback-container-gap": "4px",
     "--feedback-sheet-background-color": "#FFFFFF",
@@ -1185,7 +1207,14 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
     "--product-card-text-bottom-padding": "16px",
     "--product-card-text-spacing": "8px",
     "--product-card-carousel-horizontal-padding": "16px",
-    "--product-card-carousel-spacing": "12px"
+    "--product-card-carousel-spacing": "12px",
+    "--product-card-cta-button-background-color": "#BB5811",
+    "--product-card-cta-button-text-color": "#FFFFFF",
+    "--product-card-cta-button-border-radius": "40px",
+    "--product-card-cta-button-horizontal-padding": "16px",
+    "--product-card-cta-button-vertical-padding": "8px",
+    "--product-card-cta-button-font-size": "12px",
+    "--product-card-cta-button-font-weight": "600"
   }
 }
 ```
@@ -1407,6 +1436,8 @@ These colors are used internally by composables but cannot be customized in them
 | `--product-card-badge-text-color` | ✅ | Extended product card badge text color | `ExtendedProductCard` |
 | `--product-card-badge-background-color` | ✅ | Extended product card badge background | `ExtendedProductCard` |
 | `--product-card-was-price-color` | ✅ | Extended product card "was" price color | `ExtendedProductCard` |
+| `--product-card-cta-button-background-color` | ✅ | "Buy now" CTA button background color | `ExtendedProductCard` |
+| `--product-card-cta-button-text-color` | ✅ | "Buy now" CTA button label text color | `ExtendedProductCard` |
 
 Note: The feedback dialog checkbox uses `--color-primary` for the check box filled color; the checkmark icon is white and is not configurable via theme.
 
@@ -1455,6 +1486,11 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--product-card-text-spacing` | ✅ | Gap between title and subtitle | `ExtendedProductCard` |
 | `--product-card-carousel-horizontal-padding` | ✅ | Extra trailing inset only; leading is always the 16dp base inset | `ProductCarousel` |
 | `--product-card-carousel-spacing` | ✅ | Spacing between carousel cards | `ProductCarousel` |
+| `--product-card-cta-button-border-radius` | ✅ | "Buy now" CTA button corner radius | `ExtendedProductCard` |
+| `--product-card-cta-button-horizontal-padding` | ✅ | "Buy now" CTA button horizontal padding | `ExtendedProductCard` |
+| `--product-card-cta-button-vertical-padding` | ✅ | "Buy now" CTA button vertical padding | `ExtendedProductCard` |
+| `--product-card-cta-button-font-size` | ✅ | "Buy now" CTA button label font size | `ExtendedProductCard` |
+| `--product-card-cta-button-font-weight` | ✅ | "Buy now" CTA button label font weight | `ExtendedProductCard` |
 | `--button-height-s` | ⚠️ | Parsed but not used in composables | - |
 | `--cta-button-border-radius` | ✅ | CTA button corner radius | `CtaButton` |
 | `--cta-button-horizontal-padding` | ✅ | CTA button horizontal padding | `CtaButton` |

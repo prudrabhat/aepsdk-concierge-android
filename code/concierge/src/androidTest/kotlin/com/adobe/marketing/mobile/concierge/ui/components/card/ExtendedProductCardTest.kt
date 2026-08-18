@@ -28,6 +28,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
@@ -37,6 +38,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -106,6 +108,88 @@ class ExtendedProductCardTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Extended Sizes").assertIsDisplayed()
+    }
+
+    @Test
+    fun extendedProductCard_displaysBuyNowButton() {
+        val element = MultimodalElement(
+            id = "buy-now",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").assertIsDisplayed()
+    }
+
+    @Test
+    fun extendedProductCard_hidesBuyNowButton_whenSubtitlePresent() {
+        val element = MultimodalElement(
+            id = "buy-now-with-subtitle",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productDescription" to "Subtitle text goes here",
+                "productPrice" to "$63.97"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_invokesOnBuyNowClick_withTappedElement() {
+        val element = MultimodalElement(
+            id = "buy-now-click",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97"
+            )
+        )
+        var clicked: MultimodalElement? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight),
+                        onBuyNowClick = { clicked = it }
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").performClick()
+        assertEquals(element, clicked)
     }
 
     @Test

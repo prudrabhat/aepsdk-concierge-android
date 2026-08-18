@@ -62,7 +62,8 @@ internal fun ExtendedProductCard(
     element: MultimodalElement,
     modifier: Modifier = Modifier,
     measureOnly: Boolean = false,
-    onCardClick: (MultimodalElement) -> Unit = {}
+    onCardClick: (MultimodalElement) -> Unit = {},
+    onBuyNowClick: (MultimodalElement) -> Unit = {}
 ) {
     val style = ConciergeStyles.extendedProductCardStyle
     val productName = element.content["productName"] as? String ?: element.title
@@ -231,6 +232,38 @@ internal fun ExtendedProductCard(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(top = style.priceSpacing)
+                            )
+                        }
+                    }
+                }
+
+                // Only shown when there's no subtitle: at the card's fixed 367dp height,
+                // there isn't room for a 2-line subtitle plus the button without clipping.
+                if (subtitle.isNullOrBlank()) {
+                    val ctaStyle = ConciergeStyles.productCardCtaButtonStyle
+                    Card(
+                        modifier = Modifier
+                            .padding(top = ctaStyle.containerTopSpacing)
+                            .wrapContentWidth()
+                            .clickable { onBuyNowClick(element) },
+                        colors = CardDefaults.cardColors(containerColor = ctaStyle.backgroundColor),
+                        shape = ctaStyle.shape,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(
+                                horizontal = ctaStyle.horizontalPadding,
+                                vertical = ctaStyle.verticalPadding
+                            ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Hardcoded until a real "buy now" field exists in the content payload;
+                            // this demonstrates the SDK can render the CTA independent of backend support.
+                            // Text-only per the design spec — no icon.
+                            Text(
+                                text = "Buy now",
+                                style = ctaStyle.textStyle,
+                                color = ctaStyle.textColor
                             )
                         }
                     }

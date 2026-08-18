@@ -78,6 +78,9 @@ internal object CSSKeyMapper {
     private fun updateCtaButtonColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeCtaButtonColors?, String) -> ConciergeCtaButtonColors) =
         updateNestedColors(cssValue, theme, { it?.ctaButton }, { c, v -> c?.copy(ctaButton = v) ?: ConciergeThemeColors(ctaButton = v) }, updater)
 
+    private fun updateProductCardCtaButtonColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeProductCardCtaButtonColors?, String) -> ConciergeProductCardCtaButtonColors) =
+        updateNestedColors(cssValue, theme, { it?.productCardCtaButton }, { c, v -> c?.copy(productCardCtaButton = v) ?: ConciergeThemeColors(productCardCtaButton = v) }, updater)
+
     private fun updateCitationColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeCitationColors?, String) -> ConciergeCitationColors) =
         updateNestedColors(cssValue, theme, { it?.citation }, { c, v -> c?.copy(citation = v) ?: ConciergeThemeColors(citation = v) }, updater)
 
@@ -1034,6 +1037,50 @@ internal object CSSKeyMapper {
         "cta-button-icon-color" to { cssValue, theme ->
             updateCtaButtonColors(cssValue, theme) { existing, color ->
                 existing?.copy(iconColor = color) ?: ConciergeCtaButtonColors(iconColor = color)
+            }
+        },
+
+        // Layout - Product card CTA button
+        "product-card-cta-button-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 99.0
+                layout?.copy(productCardCtaButtonBorderRadius = radius) ?: ConciergeLayout(productCardCtaButtonBorderRadius = radius)
+            }
+        },
+        "product-card-cta-button-horizontal-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 16.0
+                layout?.copy(productCardCtaButtonHorizontalPadding = padding) ?: ConciergeLayout(productCardCtaButtonHorizontalPadding = padding)
+            }
+        },
+        "product-card-cta-button-vertical-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                layout?.copy(productCardCtaButtonVerticalPadding = padding) ?: ConciergeLayout(productCardCtaButtonVerticalPadding = padding)
+            }
+        },
+        "product-card-cta-button-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 14.0
+                layout?.copy(productCardCtaButtonFontSize = size) ?: ConciergeLayout(productCardCtaButtonFontSize = size)
+            }
+        },
+        "product-card-cta-button-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(productCardCtaButtonFontWeight = weight) ?: ConciergeLayout(productCardCtaButtonFontWeight = weight)
+            }
+        },
+
+        // Colors - Product card CTA button (using helper)
+        "product-card-cta-button-background-color" to { cssValue, theme ->
+            updateProductCardCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(backgroundColor = color) ?: ConciergeProductCardCtaButtonColors(backgroundColor = color)
+            }
+        },
+        "product-card-cta-button-text-color" to { cssValue, theme ->
+            updateProductCardCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(textColor = color) ?: ConciergeProductCardCtaButtonColors(textColor = color)
             }
         },
 

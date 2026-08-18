@@ -186,6 +186,24 @@ fun MainScreen() {
                         color = Color.White
                     )
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Product card "Buy now" CTA demo button
+                Button(
+                    onClick = { context.startActivity(Intent(context, ProductCardDemoActivity::class.java)) },
+                    modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE65100)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "🛍️ Product Card Demo",
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
+                }
             }
         }
 }
