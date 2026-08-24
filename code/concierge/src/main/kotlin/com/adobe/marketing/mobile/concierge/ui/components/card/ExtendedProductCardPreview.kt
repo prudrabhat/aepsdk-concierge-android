@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,9 +51,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -322,15 +328,24 @@ private val ctaCardStyleVariants = listOf(
 )
 
 /**
+ * Which mock "Buy now" sheet is currently shown on top of the demo grid, and for which product.
+ */
+private sealed interface BuyNowFlowStep {
+    data class SelectingOptions(val product: MultimodalElement) : BuyNowFlowStep
+    data class ReviewingOrder(val product: MultimodalElement) : BuyNowFlowStep
+}
+
+/**
  * Demo screen that renders sample extended product cards with varied content, each with a
- * "Buy now" CTA. Tapping "Buy now" swaps the grid for [MockProductPage] built from that same
- * card's data. Intended for use in the test app to validate card layout, spacing, and the CTA.
+ * "Buy now" CTA. Tapping "Buy now" opens [ProductOptionsSheet] for that card's data; its
+ * "Review Order" button then swaps in [CheckoutReviewSheet]. Intended for use in the test app to
+ * validate card layout, spacing, and the CTA.
  */
 @Composable
 internal fun ExtendedProductCardDemoScreen() {
     CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
         ConciergeTheme(theme = figmaProductCardTheme) {
-            var selectedProduct by remember { mutableStateOf<MultimodalElement?>(null) }
+            var buyNowStep by remember { mutableStateOf<BuyNowFlowStep?>(null) }
             val cardMaxHeight = ConciergeStyles.extendedProductCardStyle.cardMaxHeight
                 LazyColumn(
                     modifier = Modifier
@@ -366,7 +381,7 @@ internal fun ExtendedProductCardDemoScreen() {
                                             // (which has a subtitle) would hide it here.
                                             element = sampleCards[5],
                                             modifier = Modifier.height(cardMaxHeight),
-                                            onBuyNowClick = { selectedProduct = it }
+                                            onBuyNowClick = { buyNowStep = BuyNowFlowStep.SelectingOptions(it) }
                                         )
                                     }
                                     Text(
@@ -401,7 +416,7 @@ internal fun ExtendedProductCardDemoScreen() {
                                 ExtendedProductCard(
                                     element = lineCountVariants[index],
                                     modifier = Modifier.height(cardMaxHeight),
-                                    onBuyNowClick = { selectedProduct = it }
+                                    onBuyNowClick = { buyNowStep = BuyNowFlowStep.SelectingOptions(it) }
                                 )
                             }
                         }
@@ -428,31 +443,318 @@ internal fun ExtendedProductCardDemoScreen() {
                                 ExtendedProductCard(
                                     element = sampleCards[index],
                                     modifier = Modifier.height(cardMaxHeight),
-                                    onBuyNowClick = { selectedProduct = it }
+                                    onBuyNowClick = { buyNowStep = BuyNowFlowStep.SelectingOptions(it) }
                                 )
                             }
                         }
                     }
                 }
 
-            selectedProduct?.let { product ->
-                MockProductPage(product = product, onBack = { selectedProduct = null })
+            when (val step = buyNowStep) {
+                is BuyNowFlowStep.SelectingOptions -> ProductOptionsSheet(
+                    product = step.product,
+                    onBack = { buyNowStep = null },
+                    onReviewOrder = { buyNowStep = BuyNowFlowStep.ReviewingOrder(step.product) }
+                )
+                is BuyNowFlowStep.ReviewingOrder -> CheckoutReviewSheet(
+                    product = step.product,
+                    onBack = { buyNowStep = null }
+                )
+                null -> Unit
             }
         }
     }
 }
 
+private data class ColorSwatchOption(val color: Color, val enabled: Boolean = true)
+
+private val colorSwatchOptions = listOf(
+    ColorSwatchOption(Color(0xFF2E2E2E)),
+    ColorSwatchOption(Color(0xFF9F9996)),
+    ColorSwatchOption(Color(0xFFFFFFFF)),
+    ColorSwatchOption(Color(0xFFC7C0BC), enabled = false)
+)
+
+private data class SizeOption(val label: String, val enabled: Boolean = true)
+
+private val sizeOptions = listOf(
+    SizeOption("XS"),
+    SizeOption("S"),
+    SizeOption("M"),
+    SizeOption("L", enabled = false),
+    SizeOption("XL")
+)
+
 /**
- * Minimal, self-contained mock guest-checkout bottom sheet shown when a sample card's "Buy now"
- * CTA is tapped — "Buy now" skips straight to checkout rather than a product-detail page.
- * Matches the "BuyNow - Prefab Sheets" design spec's presentation and row structure (product
- * summary, shipping/delivery/payment/promo/rewards rows, order total, sticky checkout button
- * shown in its disabled state) using placeholder copy, since there's no real address/payment/
- * promo/rewards data to back it. Demo-only: not backed by any real checkout flow.
+ * Mock "select options" bottom sheet shown when a sample card's "Buy now" CTA is tapped — lets
+ * the shopper pick color/size/quantity/fulfillment before moving to order review. Matches the
+ * design spec's presentation and row structure using placeholder swatches and copy, since
+ * there's no real variant/inventory data to back it. Demo-only: none of the selectors are wired
+ * to real state; "Review Order" always advances to [CheckoutReviewSheet].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MockProductPage(product: MultimodalElement, onBack: () -> Unit) {
+private fun ProductOptionsSheet(
+    product: MultimodalElement,
+    onBack: () -> Unit,
+    onReviewOrder: () -> Unit
+) {
+    val productName = product.content["productName"] as? String ?: product.title
+
+    ModalBottomSheet(
+        onDismissRequest = onBack,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+        containerColor = Color.White,
+        dragHandle = null
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Select Options",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF282323)
+                )
+                if (!productName.isNullOrBlank()) {
+                    Text(
+                        text = productName,
+                        fontSize = 12.sp,
+                        color = Color(0xFF716E6C),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterEnd)) {
+                Icon(
+                    painter = painterResource(id = R.drawable.close),
+                    contentDescription = "Close",
+                    tint = Color(0xFF716E6C)
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            AttributeSelectorRow(label = "Color", value = "Black")
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(colorSwatchOptions.size) { index ->
+                    val swatch = colorSwatchOptions[index]
+                    SelectableSwatch(color = swatch.color, selected = index == 0, enabled = swatch.enabled)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            AttributeSelectorRow(label = "Size", value = "M")
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(sizeOptions.size) { index ->
+                    val size = sizeOptions[index]
+                    SelectablePill(label = size.label, selected = size.label == "M", enabled = size.enabled)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Quantity",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF797979),
+                    modifier = Modifier.weight(1f)
+                )
+                QuantityStepper()
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FulfillmentTile(
+                    icon = Icons.Filled.LocalShipping,
+                    title = "Ship",
+                    detail = "Get it by Fri, Aug 28",
+                    selected = true,
+                    modifier = Modifier.weight(1f)
+                )
+                FulfillmentTile(
+                    icon = Icons.Filled.Storefront,
+                    title = "Store Pickup",
+                    detail = "Ready today at your store",
+                    selected = false,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Button(
+                onClick = onReviewOrder,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RectangleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB5811))
+            ) {
+                Text(text = "Review Order", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+            }
+            Text(
+                text = "Standard shipping and return policy apply.",
+                fontSize = 10.sp,
+                color = Color(0xFF716E6C),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttributeSelectorRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF797979))
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF2E2E2E),
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun SelectableSwatch(color: Color, selected: Boolean, enabled: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .background(Color(0xFFF6F5F3))
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) Color(0xFF2E2E2E) else Color(0xFFD9D9D9)
+            )
+            .alpha(if (enabled) 1f else 0.4f)
+            .padding(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(color)
+        )
+    }
+}
+
+@Composable
+private fun SelectablePill(label: String, selected: Boolean, enabled: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) Color(0xFF2E2E2E) else Color(0xFFD9D9D9)
+            )
+            .alpha(if (enabled) 1f else 0.4f),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF2E2E2E))
+    }
+}
+
+@Composable
+private fun QuantityStepper() {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFF6F5F3))
+    ) {
+        QuantityStepperButton(symbol = "–")
+        Box(modifier = Modifier.size(width = 38.dp, height = 40.dp), contentAlignment = Alignment.Center) {
+            Text(text = "1", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF292525))
+        }
+        QuantityStepperButton(symbol = "+")
+    }
+}
+
+@Composable
+private fun QuantityStepperButton(symbol: String) {
+    Box(modifier = Modifier.size(width = 38.dp, height = 40.dp), contentAlignment = Alignment.Center) {
+        Text(text = symbol, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF161313))
+    }
+}
+
+@Composable
+private fun FulfillmentTile(
+    icon: ImageVector,
+    title: String,
+    detail: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White)
+            .border(
+                width = if (selected) 2.5.dp else 1.dp,
+                color = if (selected) Color(0xFF161313) else Color(0xFF413D3B),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(8.dp)
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF141414), modifier = Modifier.size(24.dp))
+        Text(
+            text = title,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF292525),
+            modifier = Modifier.padding(top = 4.dp)
+        )
+        Text(
+            text = detail,
+            fontSize = 12.sp,
+            color = Color(0xFF292525),
+            modifier = Modifier.padding(top = 2.dp)
+        )
+    }
+}
+
+/**
+ * Mock order-review bottom sheet shown after "Review Order" is tapped in [ProductOptionsSheet].
+ * Matches the "BuyNow - Prefab Sheets" design spec's presentation and row structure (product
+ * summary, standalone shipping-address card, grouped delivery/payment/promo/rewards card, sticky
+ * checkout button shown in its disabled state) using placeholder copy, since there's no real
+ * address/payment/promo/rewards data to back it. Demo-only: not backed by any real checkout flow.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CheckoutReviewSheet(product: MultimodalElement, onBack: () -> Unit) {
     val productName = product.content["productName"] as? String ?: product.title
     val productPrice = product.content["productPrice"] as? String
     val imageUrl = product.url ?: product.thumbnailUrl
@@ -542,15 +844,24 @@ private fun MockProductPage(product: MultimodalElement, onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Shipping / delivery / payment / promo / rewards — grouped card, no real data behind any of it
+            // Shipping address — its own standalone card, above the delivery/payment/promo/rewards group
+            CheckoutRow(
+                title = "Shipping Address",
+                detail = "Add a shipping address",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFF6F5F3))
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Delivery / payment / promo / rewards — grouped card, no real data behind any of it
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color(0xFFF6F5F3))
             ) {
-                CheckoutRow(title = "Shipping Address", detail = "Add a shipping address")
-                CheckoutDivider()
                 CheckoutRow(title = "Delivery Method", detail = "Standard shipping (5–7 business days)")
                 CheckoutDivider()
                 CheckoutRow(title = "Payment Method", detail = "Add a payment method", trailingLabel = "Add")
