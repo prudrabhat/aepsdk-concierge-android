@@ -27,8 +27,11 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
@@ -290,10 +293,21 @@ class ExtendedProductCardTest {
         }
 
         composeTestRule.waitForIdle()
+        // The demo screen is taller than the test viewport, and its sections are LazyColumn
+        // items, so later sections aren't composed at all until the list is actually scrolled --
+        // plain performScrollTo() only works on already-composed content, so drive the scroll via
+        // the LazyColumn's own scroll action (performScrollToNode), which triggers the
+        // scroll-then-recompose cycles needed to reach lazy content further down.
+        val list = composeTestRule.onNodeWithTag("ExtendedProductCardDemoScreenList")
+        list.performScrollToNode(hasText("Title & Description Variants"))
         composeTestRule.onNodeWithText("Title & Description Variants").assertIsDisplayed()
+
+        list.performScrollToNode(hasText("Content Variations"))
         composeTestRule.onNodeWithText("Content Variations").assertIsDisplayed()
+
         // This title appears on two sample cards, so assert via the first match rather
         // than a single-node lookup.
+        list.performScrollToNode(hasText("Product Name Goes Here Long Title Two Lines"))
         composeTestRule.onAllNodesWithText("Product Name Goes Here Long Title Two Lines")
             .onFirst()
             .assertIsDisplayed()

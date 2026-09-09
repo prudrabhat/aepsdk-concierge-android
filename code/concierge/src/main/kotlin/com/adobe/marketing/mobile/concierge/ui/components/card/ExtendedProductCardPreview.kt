@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -323,6 +324,7 @@ internal fun ExtendedProductCardDemoScreen() {
                         .fillMaxSize()
                         .background(Color(0xFFF5F5F5))
                         .statusBarsPadding()
+                        .testTag("ExtendedProductCardDemoScreenList")
                 ) {
                     item {
                         Text(
