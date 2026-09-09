@@ -111,13 +111,15 @@ class ExtendedProductCardTest {
     }
 
     @Test
-    fun extendedProductCard_displaysBuyNowButton() {
+    fun extendedProductCard_displaysCtaButton_withPayloadText() {
         val element = MultimodalElement(
             id = "buy-now",
             url = "https://example.com/image.jpg",
             content = mapOf(
                 "productName" to "Product Name",
-                "productPrice" to "$63.97"
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout"
             )
         )
 
@@ -137,13 +139,41 @@ class ExtendedProductCardTest {
     }
 
     @Test
-    fun extendedProductCard_hidesBuyNowButton_whenSubtitlePresent() {
+    fun extendedProductCard_ctaButtonLabel_reflectsPayloadText() {
         val element = MultimodalElement(
-            id = "buy-now-with-subtitle",
+            id = "shop-now",
             url = "https://example.com/image.jpg",
             content = mapOf(
                 "productName" to "Product Name",
-                "productDescription" to "Subtitle text goes here",
+                "productPrice" to "$63.97",
+                "primaryText" to "Shop Now",
+                "primaryUrl" to "https://example.com/checkout"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Shop Now").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_hidesCtaButton_whenNoPrimaryAction() {
+        val element = MultimodalElement(
+            id = "no-primary-action",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
                 "productPrice" to "$63.97"
             )
         )
@@ -164,16 +194,74 @@ class ExtendedProductCardTest {
     }
 
     @Test
-    fun extendedProductCard_invokesOnBuyNowClick_withTappedElement() {
+    fun extendedProductCard_hidesCtaButton_whenNoPrimaryUrl() {
+        val element = MultimodalElement(
+            id = "no-primary-url",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_hidesCtaButton_whenSubtitlePresent_evenWithPrimaryAction() {
+        val element = MultimodalElement(
+            id = "buy-now-with-subtitle",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productDescription" to "Subtitle text goes here",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_invokesOnActionClick_withTappedButton() {
         val element = MultimodalElement(
             id = "buy-now-click",
             url = "https://example.com/image.jpg",
             content = mapOf(
                 "productName" to "Product Name",
-                "productPrice" to "$63.97"
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout"
             )
         )
-        var clicked: MultimodalElement? = null
+        var clicked: ProductActionButton? = null
 
         composeTestRule.setContent {
             ConciergeTheme {
@@ -181,7 +269,7 @@ class ExtendedProductCardTest {
                     ExtendedProductCard(
                         element = element,
                         modifier = Modifier.height(cardMaxHeight),
-                        onBuyNowClick = { clicked = it }
+                        onActionClick = { clicked = it }
                     )
                 }
             }
@@ -189,7 +277,10 @@ class ExtendedProductCardTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Buy now").performClick()
-        assertEquals(element, clicked)
+        assertEquals(
+            ProductActionButton(id = "buy-now-click_primary", text = "Buy now", url = "https://example.com/checkout"),
+            clicked
+        )
     }
 
     @Test

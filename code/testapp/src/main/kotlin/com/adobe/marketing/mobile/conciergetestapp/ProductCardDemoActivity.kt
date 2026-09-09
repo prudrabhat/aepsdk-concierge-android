@@ -20,7 +20,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCardDemoSc
 
 /**
  * Launches the SDK's product card demo screen, showing sample [ExtendedProductCard]s with the
- * "Buy now" CTA. Demo scaffolding for MAR-2742; safe to remove once a real "Buy now" flow lands.
+ * CTA button.
  */
 class ProductCardDemoActivity : ComponentActivity() {
 

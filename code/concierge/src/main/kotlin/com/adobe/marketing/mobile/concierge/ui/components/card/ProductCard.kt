@@ -116,36 +116,8 @@ internal fun ProductCard(
 }
 
 /**
- * Helper function to extract action buttons from MultimodalElement content map
+ * Extracts action buttons from a MultimodalElement's content map, via the shared
+ * [primaryActionButton]/[secondaryActionButton] helpers (also used by [ExtendedProductCard]).
  */
-private fun extractActionButtons(element: MultimodalElement): List<ProductActionButton> {
-    val actionButtons = mutableListOf<ProductActionButton>()
-
-    // Extract primary action button
-    val primaryText = element.content["primaryText"] as? String
-    val primaryUrl = element.content["primaryUrl"] as? String
-    if (!primaryText.isNullOrEmpty()) {
-        actionButtons.add(
-            ProductActionButton(
-                id = "${element.id}_primary",
-                text = primaryText,
-                url = primaryUrl
-            )
-        )
-    }
-
-    // Extract secondary action button
-    val secondaryText = element.content["secondaryText"] as? String
-    val secondaryUrl = element.content["secondaryUrl"] as? String
-    if (!secondaryText.isNullOrEmpty()) {
-        actionButtons.add(
-            ProductActionButton(
-                id = "${element.id}_secondary",
-                text = secondaryText,
-                url = secondaryUrl
-            )
-        )
-    }
-
-    return actionButtons
-}
+private fun extractActionButtons(element: MultimodalElement): List<ProductActionButton> =
+    listOfNotNull(primaryActionButton(element), secondaryActionButton(element))

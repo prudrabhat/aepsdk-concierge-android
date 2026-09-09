@@ -27,6 +27,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.ui.theme.ProductCardStyle
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -37,6 +38,16 @@ class RecommendationCardsTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    /** Theme forcing the PRODUCT_DETAIL card style, so RecommendationCards renders ExtendedProductCard. */
+    private val productDetailTheme = ConciergeThemeData(
+        config = ConciergeThemeConfig(),
+        tokens = ConciergeThemeTokens(
+            behavior = ConciergeThemeBehavior(
+                productCard = ConciergeProductCardBehavior(cardStyle = ProductCardStyle.PRODUCT_DETAIL)
+            )
+        )
+    )
 
     @Test
     fun recommendationCards_singleElement_displaysProductCard() {
@@ -97,14 +108,6 @@ class RecommendationCardsTest {
     fun recommendationCards_singleExtendedProductCard_rendersWithCenterAlignment() {
         // Verifies that a single extended product card renders correctly when
         // horizontalAlignment = CenterHorizontally is applied to the outer Column.
-        val theme = ConciergeThemeData(
-            config = ConciergeThemeConfig(),
-            tokens = ConciergeThemeTokens(
-                behavior = ConciergeThemeBehavior(
-                    productCard = ConciergeProductCardBehavior(cardStyle = ProductCardStyle.PRODUCT_DETAIL)
-                )
-            )
-        )
         val elements = listOf(
             MultimodalElement(
                 id = "ext-1",
@@ -114,7 +117,7 @@ class RecommendationCardsTest {
         )
 
         composeTestRule.setContent {
-            ConciergeTheme(theme = theme) {
+            ConciergeTheme(theme = productDetailTheme) {
                 CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                     RecommendationCards(elements = elements)
                 }
@@ -153,5 +156,40 @@ class RecommendationCardsTest {
 
         composeTestRule.onNodeWithText("Add to Cart").performClick()
         assert(clickedButton?.text == "Add to Cart")
+    }
+
+    @Test
+    fun recommendationCards_extendedProductCard_ctaClick_triggersOnActionClick() {
+        var clickedButton: ProductActionButton? = null
+        val elements = listOf(
+            MultimodalElement(
+                id = "ext-buy-now",
+                title = "Extended Product",
+                url = "https://example.com/img.jpg",
+                content = mapOf(
+                    "productName" to "Extended Product",
+                    "primaryText" to "Buy now",
+                    "primaryUrl" to "https://example.com/checkout"
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = productDetailTheme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    RecommendationCards(
+                        elements = elements,
+                        onActionClick = { clickedButton = it }
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").performClick()
+        assertEquals(
+            ProductActionButton(id = "ext-buy-now_primary", text = "Buy now", url = "https://example.com/checkout"),
+            clickedButton
+        )
     }
 }

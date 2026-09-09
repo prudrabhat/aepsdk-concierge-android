@@ -735,7 +735,9 @@ internal object ConciergeStyles {
         }
 
     /**
-     * Styling for the product card CTA button (e.g. "Buy now")
+     * Styling for the product card's CTA button. Generic and content-agnostic -- the label
+     * comes entirely from the response payload, so it can be used for any action ("Buy now",
+     * "Shop now", "Add to Cart", etc.).
      */
     @Immutable
     data class ProductCardCtaButtonStyle(

@@ -189,7 +189,7 @@ fun MainScreen() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Product card "Buy now" CTA demo button
+                // Product card CTA button demo
                 Button(
                     onClick = { context.startActivity(Intent(context, ProductCardDemoActivity::class.java)) },
                     modifier = Modifier.size(width = 240.dp, height = 60.dp),
