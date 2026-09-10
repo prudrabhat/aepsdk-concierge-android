@@ -108,7 +108,9 @@ internal fun RecommendationCards(
 internal data class ProductActionButton(
     val id: String,
     val text: String,
-    val url: String? = null
+    val url: String? = null,
+    /** The card's actual product name, so click analytics report the product rather than the button label. */
+    val productName: String? = null
 )
 
 /**
@@ -135,6 +137,7 @@ private fun actionButton(element: MultimodalElement, textKey: String, urlKey: St
     return ProductActionButton(
         id = "${element.id}_$idSuffix",
         text = text,
-        url = element.content[urlKey] as? String
+        url = element.content[urlKey] as? String,
+        productName = element.content["productName"] as? String
     )
 }

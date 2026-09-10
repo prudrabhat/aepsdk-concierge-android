@@ -440,7 +440,27 @@ class ConciergeChatViewModelTrackingTest {
     }
 
     @Test
-    fun `cardClicked fires for product action button click`() = runTest {
+    fun `cardClicked for action button reports product name, not button label`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val vm = makeViewModel(dispatch = { dispatched.add(it) })
+
+        val button = ProductActionButton(
+            id = "btn-1",
+            text = "Buy Now",
+            url = "https://adobe.com/buy",
+            productName = "Photoshop"
+        )
+        vm.processEvent(MessageInteractionEvent.ProductActionClick(button))
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.CARD_CLICKED }
+        @Suppress("UNCHECKED_CAST")
+        val dict = event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.ELEMENT) as? Map<String, Any>
+        assertEquals("Photoshop", dict?.get("productName"))
+        assertEquals("https://adobe.com/buy", dict?.get("productPageURL"))
+    }
+
+    @Test
+    fun `cardClicked for action button falls back to label when no product name`() = runTest {
         val dispatched = mutableListOf<Event>()
         val vm = makeViewModel(dispatch = { dispatched.add(it) })
 

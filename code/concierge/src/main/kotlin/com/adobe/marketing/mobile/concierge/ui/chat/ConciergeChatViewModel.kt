@@ -434,7 +434,9 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleProductActionClick(button: ProductActionButton, handleLink: ((String) -> Boolean)?) {
         val origin = ConciergeConstants.TrackingEvent.LinkClickOrigin.PRODUCT_CARD
-        val element = mutableMapOf<String, Any>("productName" to button.text)
+        // Report the card's real product name; fall back to the button label only when the payload
+        // carried no product name (e.g. a bare text action).
+        val element = mutableMapOf<String, Any>("productName" to (button.productName ?: button.text))
         button.url?.let { element["productPageURL"] = it }
         dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(element))
 

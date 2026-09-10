@@ -204,7 +204,7 @@
     "--input-button-width": "32px",
     "--input-focus-outline-color": "#7A5C1E",
     "--input-focus-outline-width": "2px",
-    "--input-font-size": "140px",
+    "--input-font-size": "14px",
     "--input-height-mobile": "52px",
     "--input-mic-icon-color": "#7A5C1E",
     "--input-mic-recording-icon-color": "#FFFFFF",
