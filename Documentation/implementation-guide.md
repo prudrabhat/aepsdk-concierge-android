@@ -60,7 +60,7 @@ Import and register the extensions in your `Application` class `onCreate()`:
 
 ```kotlin
 import com.adobe.marketing.mobile.MobileCore
-import com.adobe.marketing.mobile.Concierge
+import com.adobe.marketing.mobile.concierge.Concierge
 import com.adobe.marketing.mobile.edge.identity.Identity as EdgeIdentity
 import android.app.Application
 
@@ -100,7 +100,7 @@ Another option for validation is to use Adobe Assurance. Refer to the [Mobile SD
 If your backend requires proof of the user's identity, register a `ConciergeAuthTokenProvider` to supply an app-minted authentication token. Brand Concierge attaches it to every chat and feedback request until the provider is cleared.
 
 ```kotlin
-import com.adobe.marketing.mobile.Concierge
+import com.adobe.marketing.mobile.concierge.Concierge
 import com.adobe.marketing.mobile.concierge.ConciergeAuthTokenProvider
 
 Concierge.setAuthTokenProvider(ConciergeAuthTokenProvider {
