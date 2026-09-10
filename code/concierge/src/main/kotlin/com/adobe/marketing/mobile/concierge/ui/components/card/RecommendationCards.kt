@@ -78,7 +78,8 @@ internal fun RecommendationCards(
                 if (useExtendedProductCards) {
                     ExtendedProductCard(
                         element = elements[0],
-                        onCardClick = onImageClick
+                        onCardClick = onImageClick,
+                        onActionClick = onActionClick
                     )
                 } else {
                     ProductCard(
@@ -91,6 +92,7 @@ internal fun RecommendationCards(
                 ProductCarousel(
                     elements = elements,
                     onImageClick = onImageClick,
+                    onActionClick = onActionClick,
                     useExtendedProductCards = useExtendedProductCards,
                     leadingInset = leadingInset
                 )
@@ -106,5 +108,36 @@ internal fun RecommendationCards(
 internal data class ProductActionButton(
     val id: String,
     val text: String,
-    val url: String? = null
+    val url: String? = null,
+    /** The card's actual product name, so click analytics report the product rather than the button label. */
+    val productName: String? = null
 )
+
+/**
+ * Builds a [ProductActionButton] from an element's already-parsed `primaryText`/`primaryUrl`
+ * (entity_info.primary), or null when the backend sent no primary action for this element.
+ * `url` is optional -- a text-only action is valid; callers that require a destination (e.g.
+ * [ExtendedProductCard]'s single CTA slot) check `.url` themselves. The single source of truth
+ * for the primary/secondary action-button contract shared by [ProductCard] and
+ * [ExtendedProductCard].
+ */
+internal fun primaryActionButton(element: MultimodalElement): ProductActionButton? =
+    actionButton(element, textKey = "primaryText", urlKey = "primaryUrl", idSuffix = "primary")
+
+/**
+ * Builds a [ProductActionButton] from an element's already-parsed `secondaryText`/`secondaryUrl`
+ * (entity_info.secondary), or null when the backend sent no secondary action for this element.
+ */
+internal fun secondaryActionButton(element: MultimodalElement): ProductActionButton? =
+    actionButton(element, textKey = "secondaryText", urlKey = "secondaryUrl", idSuffix = "secondary")
+
+private fun actionButton(element: MultimodalElement, textKey: String, urlKey: String, idSuffix: String): ProductActionButton? {
+    val text = element.content[textKey] as? String
+    if (text.isNullOrBlank()) return null
+    return ProductActionButton(
+        id = "${element.id}_$idSuffix",
+        text = text,
+        url = element.content[urlKey] as? String,
+        productName = element.content["productName"] as? String
+    )
+}

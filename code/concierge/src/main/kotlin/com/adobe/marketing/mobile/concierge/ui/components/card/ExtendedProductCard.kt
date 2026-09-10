@@ -32,15 +32,22 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+
+/** Test tag on the [ExtendedProductCard] CTA button so UI tests can target it unambiguously. */
+internal const val CTA_BUTTON_TEST_TAG = "ExtendedProductCardCtaButton"
 
 /**
  * Composable that displays a single product card containing a fixed-size image, badge,
@@ -61,7 +68,8 @@ internal fun ExtendedProductCard(
     element: MultimodalElement,
     modifier: Modifier = Modifier,
     measureOnly: Boolean = false,
-    onCardClick: (MultimodalElement) -> Unit = {}
+    onCardClick: (MultimodalElement) -> Unit = {},
+    onActionClick: (ProductActionButton) -> Unit = {}
 ) {
     val style = ConciergeStyles.extendedProductCardStyle
     val productName = element.content["productName"] as? String ?: element.title
@@ -79,6 +87,16 @@ internal fun ExtendedProductCard(
         modifier = modifier
             .width(style.cardWidth)
             .heightIn(min = style.cardMinHeight, max = style.cardMaxHeight)
+            .then(
+                if (style.shadowElevation > 0.dp) {
+                    Modifier.shadow(
+                        elevation = style.shadowElevation,
+                        shape = style.cardShape,
+                        ambientColor = style.shadowColor,
+                        spotColor = style.shadowColor
+                    )
+                } else Modifier
+            )
             .clip(style.cardShape)
             .then(
                 if (style.cardOutlineColor != Color.Transparent) {
@@ -87,7 +105,7 @@ internal fun ExtendedProductCard(
             )
             .clickable { onCardClick(element) },
         shape = style.cardShape,
-        elevation = CardDefaults.cardElevation(defaultElevation = style.cardElevation),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = style.cardBackgroundColor)
     ) {
         Column(
@@ -146,6 +164,8 @@ internal fun ExtendedProductCard(
                             color = style.badgeTextColor,
                             fontSize = style.badgeFontSize,
                             fontWeight = style.badgeFontWeight,
+                            lineHeight = style.badgeLineHeight,
+                            letterSpacing = style.badgeLetterSpacing,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -218,6 +238,41 @@ internal fun ExtendedProductCard(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(top = style.priceSpacing)
+                            )
+                        }
+                    }
+                }
+
+                // Product Card CTA Button
+                // Only shown when there's a label AND a destination to send it to. In addition to these requirements,
+                // the presence of a subtitle will prevent it from showing as well since at the card's fixed 367dp
+                // height there isn't room for a 2-line subtitle plus the button without clipping.
+                val cta = remember(element) { primaryActionButton(element) }
+                if (subtitle.isNullOrBlank() && cta != null && !cta.url.isNullOrBlank()) {
+                    val ctaStyle = ConciergeStyles.productCardCtaButtonStyle
+                    Card(
+                        modifier = Modifier
+                            .padding(top = ctaStyle.containerTopSpacing)
+                            .wrapContentWidth()
+                            .testTag(CTA_BUTTON_TEST_TAG)
+                            .clickable(onClickLabel = cta.text, role = Role.Button) { onActionClick(cta) },
+                        colors = CardDefaults.cardColors(containerColor = ctaStyle.backgroundColor),
+                        shape = ctaStyle.shape,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(
+                                horizontal = ctaStyle.horizontalPadding,
+                                vertical = ctaStyle.verticalPadding
+                            ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = cta.text,
+                                style = ctaStyle.textStyle,
+                                color = ctaStyle.textColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

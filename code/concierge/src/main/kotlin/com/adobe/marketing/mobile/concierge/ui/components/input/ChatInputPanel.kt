@@ -13,17 +13,26 @@
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
+import com.adobe.marketing.mobile.concierge.ui.components.image.rememberIsIconConfigured
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBorder
 
 /**
  * Chat input panel with text field, microphone button, and send button.
@@ -56,13 +65,21 @@ internal fun ChatInputPanel(
     isFocused: Boolean = false
 ) {
     val style = ConciergeStyles.inputPanelStyle
-    
+    val enableVoiceInput = ConciergeTheme.behavior?.enableVoiceInput ?: true
+
     // Determine border appearance based on focus state
     val borderModifier = when {
         isFocused && style.focusBorderWidth > 0.dp && style.focusBorderColor != null -> {
             Modifier.border(
                 width = style.focusBorderWidth,
                 color = style.focusBorderColor,
+                shape = style.innerShape
+            )
+        }
+        !isFocused && style.borderWidth > 0.dp && style.borderGradient?.isRenderable == true -> {
+            Modifier.conciergeGradientBorder(
+                width = style.borderWidth,
+                gradient = style.borderGradient,
                 shape = style.innerShape
             )
         }
@@ -87,9 +104,37 @@ internal fun ChatInputPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(style.innerPadding),
-            // Pin action buttons to the bottom so they stay anchored as the text field grows multi-line.
-            verticalAlignment = Alignment.Bottom
+            // Spec `align-items: center` -- the text and action icons share a common vertical center
+            // so the placeholder/input text lines up with the leading icon and the send/mic buttons.
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // Reserve layout space only once the icon is actually resolvable -- same rule
+            // ChatMessageItem applies to company icons -- so a typo'd/missing local asset name
+            // hides the icon entirely instead of leaving a permanent blank gap before the text field.
+            val leadingIconPath = ConciergeTheme.behavior?.showAiChatIcon
+                ?.takeIf { rememberIsIconConfigured(it) }
+            if (leadingIconPath != null) {
+                // The leading icon is decorative (not a tap target), so it renders at the bare glyph
+                // size with no padded container -- the spec's 4px gap to the text field is provided
+                // explicitly below rather than by container padding, which previously left a wide
+                // blank gap between the glyph and the text.
+                Box(
+                    modifier = Modifier
+                        .size(ConciergeStyles.inputRowIconSize)
+                        .testTag("ChatInputLeadingIcon"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LocalAssetImage(
+                        source = leadingIconPath,
+                        contentDescription = ConciergeTheme.text?.inputAiChatIconTooltip ?: "Ask AI",
+                        modifier = Modifier
+                            .size(ConciergeStyles.inputRowIconSize)
+                            .testTag("ChatInputLeadingIconGlyph")
+                    )
+                }
+                Spacer(modifier = Modifier.width(style.leadingIconSpacing))
+            }
+
             ChatTextField(
                 modifier = Modifier.weight(1f),
                 value = text,
@@ -97,6 +142,13 @@ internal fun ChatInputPanel(
                 isEnabled = enable,
                 placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
             )
+
+            // InputActionButtons renders nothing when voice input is off and the field is empty
+            // (no clear button, and the send button's AnimatedVisibility is fully hidden) -- skip
+            // the gap in that case so the pill's trailing edge doesn't show an extra blank space.
+            if (enableVoiceInput || text.isNotBlank()) {
+                Spacer(modifier = Modifier.width(style.buttonSpacing))
+            }
 
             // Input action buttons (clear, mic, and send) with state-aware animations
             InputActionButtons(
@@ -106,7 +158,8 @@ internal fun ChatInputPanel(
                 onMicPressed = onMicPressed,
                 onVoiceCancel = { onVoiceCancel?.invoke() },
                 onSend = onSend,
-                onClear = { onClear?.invoke() }
+                onClear = { onClear?.invoke() },
+                buttonSpacing = style.buttonSpacing
             )
         }
     }

@@ -110,6 +110,36 @@ internal object CSSValueConverter {
     }
     
     /**
+     * Parses a CSS gradient direction value to a CSS-convention angle in degrees (0 = "to top",
+     * increasing clockwise). Supports "<n>deg" and the "to <keyword>" direction keywords.
+     * Defaults to 180 ("to bottom") when unrecognized.
+     */
+    fun parseGradientAngle(cssValue: String): Float {
+        val trimmed = cssValue.trim().lowercase()
+        return when (trimmed) {
+            "to top" -> 0f
+            "to right" -> 90f
+            "to bottom" -> 180f
+            "to left" -> 270f
+            "to top right", "to right top" -> 45f
+            "to bottom right", "to right bottom" -> 135f
+            "to bottom left", "to left bottom" -> 225f
+            "to top left", "to left top" -> 315f
+            else -> {
+                if (trimmed.endsWith("deg")) {
+                    // toDoubleOrNull follows Double.parseDouble conventions, which also accepts
+                    // "NaN"/"Infinity" literals -- guard explicitly rather than let a non-finite
+                    // value propagate into ConciergeGradient's sin/cos math.
+                    val value = trimmed.dropLast(3).toDoubleOrNull()
+                    if (value != null && value.isFinite()) value.toFloat() else 180f
+                } else {
+                    180f
+                }
+            }
+        }
+    }
+
+    /**
      * Parses a CSS font family value.
      * Returns the font family string without quotes.
      */
@@ -242,19 +272,26 @@ internal object CSSValueConverter {
     }
     
     /**
-     * Parses a CSS font-weight value.
-     * Returns numeric weight (400, 500, 600, 700, etc.)
+     * Parses a CSS font-weight value, or null when the value is neither a recognized keyword nor a
+     * numeric weight. Lets callers apply their own default on a malformed value instead of silently
+     * collapsing to 400.
      */
-    fun parseFontWeight(cssValue: String): Int {
+    fun parseFontWeightOrNull(cssValue: String): Int? {
         val trimmed = cssValue.trim()
         return when (trimmed.lowercase()) {
             "normal" -> 400
             "bold" -> 700
             "lighter" -> 300
             "bolder" -> 700
-            else -> trimmed.toIntOrNull() ?: 400
+            else -> trimmed.toIntOrNull()
         }
     }
+
+    /**
+     * Parses a CSS font-weight value.
+     * Returns numeric weight (400, 500, 600, 700, etc.), defaulting to 400 on a malformed value.
+     */
+    fun parseFontWeight(cssValue: String): Int = parseFontWeightOrNull(cssValue) ?: 400
     
     /**
      * Parses a CSS order value for flexbox.

@@ -34,11 +34,32 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
+ * Default mic recording icon color: contrasts against the pulsing disc (onPrimary) when it's
+ * shown, or falls back to the mic's own color when rendering directly on the input background.
+ */
+internal fun defaultRecordingIconColor(pulsingBackgroundEnabled: Boolean, onPrimary: Color, micColor: Color): Color =
+    if (pulsingBackgroundEnabled) onPrimary else micColor
+
+/**
  * Central styling configuration for all Concierge UI composables.
  * Organized by composable-level styles for consistency and maintainability.
  * Fully supports light and dark modes through MaterialTheme and ConciergeTheme.
  */
 internal object ConciergeStyles {
+
+    /**
+     * Default values for the product card CTA button, matching the "Vertical Card - With
+     * description" button spec. Shared as the single source of truth between this style's
+     * getter ([productCardCtaButtonStyle]) and [CSSKeyMapper]'s parse-failure fallbacks so the
+     * two can't drift apart.
+     */
+    object ProductCardCtaButtonDefaults {
+        const val BORDER_RADIUS = 40.0
+        const val HORIZONTAL_PADDING = 16.0
+        const val VERTICAL_PADDING = 8.0
+        const val FONT_SIZE = 12.0
+        const val FONT_WEIGHT = 600
+    }
 
     /**
      * Helper function to apply theme typography (font family and line height) to a TextStyle
@@ -119,14 +140,19 @@ internal object ConciergeStyles {
         val outerShape: Shape,
         val innerShape: Shape,
         val outerPadding: Dp,
-        val innerPadding: Dp,
+        /** Padding between the pill's edge and its content -- spec is `padding: 16px 12px`. */
+        val innerPadding: PaddingValues,
+        /** Gap between the leading AI-chat icon and the text field. */
+        val leadingIconSpacing: Dp,
         val backgroundColor: Color,
         val borderColor: Color?,
+        val borderGradient: ConciergeGradient?,
         val borderWidth: Dp,
         val focusBorderColor: Color?,
         val focusBorderWidth: Dp,
         val recordingBorderColors: List<Color>,
         val recordingBorderAnimationDuration: Int,
+        /** Gap between the text field and the action-button group (clear/mic/send). */
         val buttonSpacing: Dp,
         val placeholderText: String,
         val listeningPlaceholderText: String
@@ -148,9 +174,11 @@ internal object ConciergeStyles {
                 outerShape = RoundedCornerShape(outerRadius),
                 innerShape = RoundedCornerShape(innerRadius),
                 outerPadding = 2.dp,
-                innerPadding = 4.dp,
+                innerPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+                leadingIconSpacing = 4.dp,
                 backgroundColor = themeColors.inputBackground ?: themeColors.container,
                 borderColor = themeColors.inputOutline ?: themeColors.outline,
+                borderGradient = themeColors.inputOutlineGradient,
                 borderWidth = borderWidth,
                 focusBorderColor = themeColors.inputOutlineFocus ?: themeColors.primary,
                 focusBorderWidth = focusBorderWidth,
@@ -164,44 +192,6 @@ internal object ConciergeStyles {
                 buttonSpacing = 8.dp,
                 placeholderText = themeText?.inputPlaceholder ?: "How can I help",
                 listeningPlaceholderText = "Listening..."
-            )
-        }
-
-    /**
-     * Styling for voice recording panel
-     */
-    @Immutable
-    data class VoiceRecordingPanelStyle(
-        val shape: Shape,
-        val elevation: Dp,
-        val backgroundColor: Color,
-        val padding: Dp,
-        val iconSize: Dp,
-        val iconColor: Color,
-        val cancelIconColor: Color,
-        val contentSpacing: Dp,
-        val pulseAnimationDuration: Int,
-        val textStyle: TextStyle,
-        val textColor: Color,
-        val listeningText: String
-    )
-
-    val voiceRecordingPanelStyle: VoiceRecordingPanelStyle
-        @Composable get() {
-            val themeColors = ConciergeTheme.colors
-            return VoiceRecordingPanelStyle(
-                shape = RoundedCornerShape(12.dp),
-                elevation = 0.dp,
-                backgroundColor = themeColors.surface,
-                padding = 16.dp,
-                iconSize = 24.dp,
-                iconColor = themeColors.primary,
-                cancelIconColor = themeColors.onSurface,
-                contentSpacing = 12.dp,
-                pulseAnimationDuration = 1000,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                textColor = themeColors.onSurface,
-                listeningText = "Listening"
             )
         }
 
@@ -476,7 +466,8 @@ internal object ConciergeStyles {
         val cardWidth: Dp,
         val cardMinHeight: Dp,
         val cardMaxHeight: Dp,
-        val cardElevation: Dp,
+        val shadowElevation: Dp,
+        val shadowColor: Color,
         val imageWidth: Dp,
         val imageHeight: Dp,
         val imageContentScale: ContentScale,
@@ -486,6 +477,8 @@ internal object ConciergeStyles {
         val badgeTextColor: Color,
         val badgeFontSize: TextUnit,
         val badgeFontWeight: FontWeight,
+        val badgeLineHeight: TextUnit,
+        val badgeLetterSpacing: TextUnit,
         val badgePaddingHorizontal: Dp,
         val badgePaddingVertical: Dp,
         val titleColor: Color,
@@ -557,10 +550,16 @@ internal object ConciergeStyles {
             val wasPriceWeight = FontWeight(layout?.productCardWasPriceFontWeight ?: 400)
             val wasPriceTextPrefix = layout?.productCardWasPriceTextPrefix ?: "was "
             val wasPriceSize = (layout?.productCardWasPriceFontSize ?: 12.0).toFloat().sp
-            // Compose `lineHeight` is the absolute line box height, so it must exceed the font size to
-            // leave readable spacing between wrapped lines. Derive it proportionally from the font size
-            // (~1.4x) so cards stay legible and match the airier iOS spacing regardless of theme fonts.
-            val lineHeightFactor = 1.4f
+            // Compose `lineHeight` is the absolute line box height. Ratios are derived from the
+            // spec's exact px line-heights at the default font sizes (14px/17px headline, 12px/14px
+            // caption) so cards reproduce the design's line spacing instead of an arbitrary multiplier.
+            val headlineLineHeightFactor = 17f / 14f
+            val smallTextLineHeightFactor = 14f / 12f
+            // multimodalCardBoxShadow is null for both an unset theme and an explicit CSS
+            // "none", so both cases naturally fall through to no shadow.
+            val boxShadow = layout?.multimodalCardBoxShadow
+            val shadowElevationDp = ((boxShadow?.get("blurRadius") as? Double) ?: 0.0).toFloat().dp
+            val shadowColor = (boxShadow?.get("color") as? Color) ?: Color.Transparent
             return ExtendedProductCardStyle(
                 cardShape = RoundedCornerShape(cardBorderRadius),
                 cardBackgroundColor = cardBg,
@@ -568,7 +567,8 @@ internal object ConciergeStyles {
                 cardWidth = cardWidthDp,
                 cardMinHeight = cardMinHeightDp,
                 cardMaxHeight = cardMaxHeightDp,
-                cardElevation = 4.dp,
+                shadowElevation = shadowElevationDp,
+                shadowColor = shadowColor,
                 imageWidth = imageWidthDp,
                 imageHeight = imageHeightDp,
                 imageContentScale = imageContentScale,
@@ -577,33 +577,35 @@ internal object ConciergeStyles {
                 badgeTextColor = badgeText,
                 badgeFontSize = badgeSize,
                 badgeFontWeight = badgeWeight,
+                badgeLineHeight = (badgeSize.value * smallTextLineHeightFactor).sp,
+                badgeLetterSpacing = 0.sp,
                 badgePaddingHorizontal = 12.dp,
                 badgePaddingVertical = 4.dp,
                 titleColor = titleColor,
                 titleFontSize = titleSize,
                 titleFontWeight = titleWeight,
-                titleLineHeight = (titleSize.value * lineHeightFactor).sp,
+                titleLineHeight = (titleSize.value * headlineLineHeightFactor).sp,
                 subtitleColor = subtitleColor,
                 subtitleFontSize = subtitleSize,
                 subtitleFontWeight = subtitleWeight,
-                subtitleLineHeight = (subtitleSize.value * lineHeightFactor).sp,
-                subtitleLetterSpacing = 0.sp,
+                subtitleLineHeight = (subtitleSize.value * smallTextLineHeightFactor).sp,
+                subtitleLetterSpacing = (-0.5).sp,
                 priceColor = priceColor,
                 priceFontSize = priceSize,
                 priceFontWeight = priceWeight,
-                priceLineHeight = (priceSize.value * lineHeightFactor).sp,
-                priceLetterSpacing = 0.sp,
+                priceLineHeight = (priceSize.value * headlineLineHeightFactor).sp,
+                priceLetterSpacing = (-0.5).sp,
                 wasPriceFontSize = wasPriceSize,
                 wasPriceFontWeight = wasPriceWeight,
-                wasPriceLineHeight = (wasPriceSize.value * lineHeightFactor).sp,
+                wasPriceLineHeight = (wasPriceSize.value * smallTextLineHeightFactor).sp,
                 wasPriceColor = wasPriceColor,
                 wasPriceTextPrefix = wasPriceTextPrefix,
                 contentPadding = (layout?.productCardTextHorizontalPadding ?: 16.0).toFloat().dp,
                 contentPaddingTop = (layout?.productCardTextTopPadding ?: 24.0).toFloat().dp,
                 contentPaddingBottom = (layout?.productCardTextBottomPadding ?: 16.0).toFloat().dp,
                 titleSubtitleSpacing = ((layout?.productCardTitleSubtitleSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp,
-                sectionSpacing = ((layout?.productCardSectionSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp,
-                priceSpacing = ((layout?.productCardPriceSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp
+                sectionSpacing = ((layout?.productCardSectionSpacing ?: layout?.productCardTextSpacing ?: 16.0)).toFloat().dp,
+                priceSpacing = (layout?.productCardPriceSpacing ?: 0.0).toFloat().dp
             )
         }
 
@@ -748,6 +750,55 @@ internal object ConciergeStyles {
                     fontWeight = fontWeight
                 ),
                 textColor = themeColors.ctaButtonText ?: Color(0xFF191F1C)
+            )
+        }
+
+    /**
+     * Styling for the product card's CTA button. Generic and content-agnostic -- the label
+     * comes entirely from the response payload, so it can be used for any action ("Buy now",
+     * "Shop now", "Add to Cart", etc.).
+     */
+    @Immutable
+    data class ProductCardCtaButtonStyle(
+        val containerTopSpacing: Dp,
+        val shape: Shape,
+        val backgroundColor: Color,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
+        val textStyle: TextStyle,
+        val textColor: Color
+    )
+
+    val productCardCtaButtonStyle: ProductCardCtaButtonStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val ctaLayout = ConciergeTheme.tokens?.cssLayout
+            // Defaults match the "Vertical Card - With description" button spec: 40dp
+            // radius (clamps to a full pill at this height anyway), #BB5811 fill, 12sp/600
+            // label, ~32dp fixed height (approximated via vertical padding since this style has
+            // no dedicated fixed-height concept).
+            val borderRadius = ctaLayout?.productCardCtaButtonBorderRadius?.dp
+                ?: ProductCardCtaButtonDefaults.BORDER_RADIUS.dp
+            val fontWeight = ctaLayout?.productCardCtaButtonFontWeight?.let { FontWeight(it) }
+                ?: FontWeight(ProductCardCtaButtonDefaults.FONT_WEIGHT)
+            val fontSize = ctaLayout?.productCardCtaButtonFontSize?.sp
+                ?: ProductCardCtaButtonDefaults.FONT_SIZE.sp
+            return ProductCardCtaButtonStyle(
+                // Matches the "info" auto-layout's gap:16px, which the design applies uniformly
+                // between all stacked children (title/subtitle, price/was-price, and the button).
+                containerTopSpacing = 16.dp,
+                shape = RoundedCornerShape(borderRadius),
+                backgroundColor = themeColors.productCardCtaButtonBackground ?: Color(0xFFBB5811),
+                horizontalPadding = ctaLayout?.productCardCtaButtonHorizontalPadding?.dp
+                    ?: ProductCardCtaButtonDefaults.HORIZONTAL_PADDING.dp,
+                verticalPadding = ctaLayout?.productCardCtaButtonVerticalPadding?.dp
+                    ?: ProductCardCtaButtonDefaults.VERTICAL_PADDING.dp,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = fontSize,
+                    fontWeight = fontWeight,
+                    lineHeight = fontSize * 1.4f
+                ),
+                textColor = themeColors.productCardCtaButtonText ?: Color.White
             )
         }
 
@@ -897,15 +948,29 @@ internal object ConciergeStyles {
     )
 
     /**
+     * Shared icon size for every icon in the input row -- leading AI-chat icon, clear (x), mic,
+     * send, and stop-recording -- a single knob matching iOS's `theme.layout.inputButtonWidth`/
+     * `inputButtonHeight`. Either CSS key alone is enough to override the default; width wins when
+     * both are set, since these icons are always rendered square.
+     */
+    val inputRowIconSize: Dp
+        @Composable get() {
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
+            return (cssLayout?.inputButtonWidth ?: cssLayout?.inputButtonHeight)?.dp ?: 24.dp
+        }
+
+    /**
      * Styling for microphone button
      */
     @Immutable
     data class MicButtonStyle(
         val size: Dp,
         val iconColor: Color,
+        val iconGradient: ConciergeGradient?,
         val recordingIconColor: Color,
+        val waveformGradient: ConciergeGradient?,
+        val pulsingBackgroundEnabled: Boolean,
         val pulsingBackgroundColor: Color,
-        val pulsingBackgroundAlpha: Float,
         val pulseAnimationDuration: Int,
         val pulseScaleRange: Pair<Float, Float>,
         val ringAlpha: Float
@@ -916,12 +981,16 @@ internal object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             val micColor = themeColors.primary
             val micIconColor = themeColors.micIconColor ?: micColor
+            val pulsingBackgroundEnabled = ConciergeTheme.behavior?.enableMicPulseBackground ?: true
             return MicButtonStyle(
-                size = 24.dp,
+                size = inputRowIconSize,
                 iconColor = micIconColor,
-                recordingIconColor = themeColors.micRecordingIconColor ?: themeColors.onPrimary,
+                iconGradient = themeColors.micIconGradient,
+                recordingIconColor = themeColors.micRecordingIconColor
+                    ?: defaultRecordingIconColor(pulsingBackgroundEnabled, themeColors.onPrimary, micColor),
+                waveformGradient = themeColors.micWaveformGradient,
+                pulsingBackgroundEnabled = pulsingBackgroundEnabled,
                 pulsingBackgroundColor = micColor,
-                pulsingBackgroundAlpha = 0.25f,
                 pulseAnimationDuration = 1000,
                 pulseScaleRange = 1.5f to 2.0f,
                 ringAlpha = 0.30f,
@@ -936,6 +1005,7 @@ internal object ConciergeStyles {
         val size: Dp,
         val enabledIconColor: Color,
         val arrowCircleColor: Color,
+        val arrowCircleGradient: ConciergeGradient?,
         val arrowIconColor: Color,
         val disabledIconAlpha: Float,
         val useArrowStyle: Boolean
@@ -946,9 +1016,10 @@ internal object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             val sendButtonStyleName = ConciergeTheme.behavior?.sendButtonStyle ?: "default"
             return SendButtonStyle(
-                size = 24.dp,
+                size = inputRowIconSize,
                 enabledIconColor = themeColors.sendIconColor ?: themeColors.onSurface,
                 arrowCircleColor = themeColors.sendArrowBackgroundColor ?: themeColors.sendIconColor ?: themeColors.primary,
+                arrowCircleGradient = themeColors.sendArrowBackgroundGradient,
                 arrowIconColor = themeColors.sendArrowIconColor ?: themeColors.onPrimary,
                 disabledIconAlpha = 0.3f,
                 useArrowStyle = sendButtonStyleName == "arrow"
@@ -1045,11 +1116,11 @@ internal object ConciergeStyles {
      */
     @Immutable
     data class ChatTextFieldStyle(
-        val horizontalPadding: Dp,
         val maxLines: Int,
         val textStyle: TextStyle,
         val placeholderTextColor: Color,
-        val fontSize: TextUnit? = null
+        val fontSize: TextUnit? = null,
+        val disabledAlpha: Float = 0.5f
     )
 
     val chatTextFieldStyle: ChatTextFieldStyle
@@ -1058,7 +1129,6 @@ internal object ConciergeStyles {
             val themeTypography = ConciergeTheme.typography
             val fontSize = themeTypography?.inputFontSize?.sp
             return ChatTextFieldStyle(
-                horizontalPadding = 8.dp,
                 maxLines = 10,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = themeColors.inputText ?: themeColors.onSurface,
