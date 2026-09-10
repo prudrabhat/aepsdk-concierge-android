@@ -1000,6 +1000,41 @@ class CSSKeyMapperTest {
     }
 
     @Test
+    fun `apply falls back to ProductCardCtaButton defaults for malformed values`() {
+        // A malformed (unparseable) value must land on the same defaults ConciergeStyles applies
+        // when the key is absent, not on the generic cta-button numbers.
+        val radius = CSSKeyMapper.apply("--product-card-cta-button-border-radius", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.BORDER_RADIUS,
+            radius.cssLayout?.productCardCtaButtonBorderRadius
+        )
+
+        val horizontal = CSSKeyMapper.apply("--product-card-cta-button-horizontal-padding", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.HORIZONTAL_PADDING,
+            horizontal.cssLayout?.productCardCtaButtonHorizontalPadding
+        )
+
+        val vertical = CSSKeyMapper.apply("--product-card-cta-button-vertical-padding", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.VERTICAL_PADDING,
+            vertical.cssLayout?.productCardCtaButtonVerticalPadding
+        )
+
+        val fontSize = CSSKeyMapper.apply("--product-card-cta-button-font-size", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.FONT_SIZE,
+            fontSize.cssLayout?.productCardCtaButtonFontSize
+        )
+
+        val fontWeight = CSSKeyMapper.apply("--product-card-cta-button-font-weight", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.FONT_WEIGHT,
+            fontWeight.cssLayout?.productCardCtaButtonFontWeight
+        )
+    }
+
+    @Test
     fun `apply maps all product-card-cta-button layout properties independently`() {
         var theme = CSSKeyMapper.apply("--product-card-cta-button-border-radius", "24px", emptyTheme)
         theme = CSSKeyMapper.apply("--product-card-cta-button-horizontal-padding", "20px", theme)

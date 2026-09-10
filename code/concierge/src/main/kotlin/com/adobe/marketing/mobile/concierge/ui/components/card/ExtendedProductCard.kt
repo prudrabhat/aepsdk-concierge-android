@@ -32,16 +32,22 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+
+/** Test tag on the [ExtendedProductCard] CTA button so UI tests can target it unambiguously. */
+internal const val CTA_BUTTON_TEST_TAG = "ExtendedProductCardCtaButton"
 
 /**
  * Composable that displays a single product card containing a fixed-size image, badge,
@@ -241,14 +247,15 @@ internal fun ExtendedProductCard(
                 // Only shown when there's a label AND a destination to send it to. In addition to these requirements,
                 // the presence of a subtitle will prevent it from showing as well since at the card's fixed 367dp
                 // height there isn't room for a 2-line subtitle plus the button without clipping.
-                val cta = primaryActionButton(element)
+                val cta = remember(element) { primaryActionButton(element) }
                 if (subtitle.isNullOrBlank() && cta != null && !cta.url.isNullOrBlank()) {
                     val ctaStyle = ConciergeStyles.productCardCtaButtonStyle
                     Card(
                         modifier = Modifier
                             .padding(top = ctaStyle.containerTopSpacing)
                             .wrapContentWidth()
-                            .clickable { onActionClick(cta) },
+                            .testTag(CTA_BUTTON_TEST_TAG)
+                            .clickable(onClickLabel = cta.text, role = Role.Button) { onActionClick(cta) },
                         colors = CardDefaults.cardColors(containerColor = ctaStyle.backgroundColor),
                         shape = ctaStyle.shape,
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

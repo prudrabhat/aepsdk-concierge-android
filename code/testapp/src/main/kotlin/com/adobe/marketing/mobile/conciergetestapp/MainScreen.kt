@@ -12,7 +12,10 @@
 
 package com.adobe.marketing.mobile.conciergetestapp
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.widget.Toast
+import com.adobe.marketing.mobile.conciergeapp.BuildConfig
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +53,11 @@ import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
+
+// FQN of the debug-only ProductCardDemoActivity. It lives in the `debug` source set, so it can't be
+// referenced by class literal from `main`; keep this string in sync if the activity is renamed/moved.
+private const val PRODUCT_CARD_DEMO_ACTIVITY_CLASS =
+    "com.adobe.marketing.mobile.conciergetestapp.ProductCardDemoActivity"
 
 @Composable
 fun MainScreen() {
@@ -187,22 +195,38 @@ fun MainScreen() {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // Product card CTA button demo. ProductCardDemoActivity only exists in the debug
+                // build type, so gate the launch on BuildConfig.DEBUG (true iff the debug source
+                // set is compiled in) and dispatch by class name to avoid a compile-time reference.
+                if (BuildConfig.DEBUG) {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Product card CTA button demo
-                Button(
-                    onClick = { context.startActivity(Intent(context, ProductCardDemoActivity::class.java)) },
-                    modifier = Modifier.size(width = 240.dp, height = 60.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE65100)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "🛍️ Product Card Demo",
-                        fontSize = 16.sp,
-                        color = Color.White
-                    )
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(
+                                    Intent().setClassName(context, PRODUCT_CARD_DEMO_ACTIVITY_CLASS)
+                                )
+                            } catch (e: ActivityNotFoundException) {
+                                Toast.makeText(
+                                    context,
+                                    "Product card demo is unavailable in this build",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE65100)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "🛍️ Product Card Demo",
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }

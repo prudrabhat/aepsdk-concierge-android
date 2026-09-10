@@ -983,31 +983,36 @@ internal object CSSKeyMapper {
         // Layout - Product card CTA button
         "product-card-cta-button-border-radius" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 99.0
+                val radius = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.BORDER_RADIUS
                 layout?.copy(productCardCtaButtonBorderRadius = radius) ?: ConciergeLayout(productCardCtaButtonBorderRadius = radius)
             }
         },
         "product-card-cta-button-horizontal-padding" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 16.0
+                val padding = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.HORIZONTAL_PADDING
                 layout?.copy(productCardCtaButtonHorizontalPadding = padding) ?: ConciergeLayout(productCardCtaButtonHorizontalPadding = padding)
             }
         },
         "product-card-cta-button-vertical-padding" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                val padding = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.VERTICAL_PADDING
                 layout?.copy(productCardCtaButtonVerticalPadding = padding) ?: ConciergeLayout(productCardCtaButtonVerticalPadding = padding)
             }
         },
         "product-card-cta-button-font-size" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val size = CSSValueConverter.parsePxValue(cssValue) ?: 14.0
+                val size = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.FONT_SIZE
                 layout?.copy(productCardCtaButtonFontSize = size) ?: ConciergeLayout(productCardCtaButtonFontSize = size)
             }
         },
         "product-card-cta-button-font-weight" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                val weight = CSSValueConverter.parseFontWeightOrNull(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.FONT_WEIGHT
                 layout?.copy(productCardCtaButtonFontWeight = weight) ?: ConciergeLayout(productCardCtaButtonFontWeight = weight)
             }
         },

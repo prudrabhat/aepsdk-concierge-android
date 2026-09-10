@@ -24,14 +24,10 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
@@ -224,6 +220,73 @@ class ExtendedProductCardTest {
     }
 
     @Test
+    fun extendedProductCard_hidesCtaButton_whenPrimaryUrlIsBlank() {
+        val element = MultimodalElement(
+            id = "blank-primary-url",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "   "
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(CTA_BUTTON_TEST_TAG).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_ctaClick_firesActionClick_notCardClick() {
+        var actionClicks = 0
+        var cardClicks = 0
+        val element = MultimodalElement(
+            id = "cta-click-isolation",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight),
+                        onCardClick = { cardClicks++ },
+                        onActionClick = { actionClicks++ }
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(CTA_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitForIdle()
+
+        // Tapping the CTA must route only through onActionClick; the card's own click must not
+        // also fire now that both live on one card.
+        assertEquals(1, actionClicks)
+        assertEquals(0, cardClicks)
+    }
+
+    @Test
     fun extendedProductCard_hidesCtaButton_whenSubtitlePresent_evenWithPrimaryAction() {
         val element = MultimodalElement(
             id = "buy-now-with-subtitle",
@@ -286,32 +349,6 @@ class ExtendedProductCardTest {
         )
     }
 
-    @Test
-    fun extendedProductCardDemoScreen_rendersLineCountAndContentVariantCards() {
-        composeTestRule.setContent {
-            ExtendedProductCardDemoScreen()
-        }
-
-        composeTestRule.waitForIdle()
-        // The demo screen is taller than the test viewport, and its sections are LazyColumn
-        // items, so later sections aren't composed at all until the list is actually scrolled --
-        // plain performScrollTo() only works on already-composed content, so drive the scroll via
-        // the LazyColumn's own scroll action (performScrollToNode), which triggers the
-        // scroll-then-recompose cycles needed to reach lazy content further down.
-        val list = composeTestRule.onNodeWithTag("ExtendedProductCardDemoScreenList")
-        list.performScrollToNode(hasText("Title & Description Variants"))
-        composeTestRule.onNodeWithText("Title & Description Variants").assertIsDisplayed()
-
-        list.performScrollToNode(hasText("Content Variations"))
-        composeTestRule.onNodeWithText("Content Variations").assertIsDisplayed()
-
-        // This title appears on two sample cards, so assert via the first match rather
-        // than a single-node lookup.
-        list.performScrollToNode(hasText("Product Name Goes Here Long Title Two Lines"))
-        composeTestRule.onAllNodesWithText("Product Name Goes Here Long Title Two Lines")
-            .onFirst()
-            .assertIsDisplayed()
-    }
 
     // -----------------------------------------------------------------------
     // Drop shadow rendering (--multimodal-card-box-shadow)

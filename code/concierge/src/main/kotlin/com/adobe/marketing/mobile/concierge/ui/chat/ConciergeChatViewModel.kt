@@ -24,6 +24,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
+import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.network.LinkHint
@@ -274,7 +275,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Chat service client for handling conversation API calls
      */
-    private val chatService: ConciergeConversationServiceClient
+    private val chatService: ConversationService
 
     /**
      * Dispatch function for sending tracking events to the AEP Event Hub.
@@ -307,14 +308,14 @@ class ConciergeChatViewModel : AndroidViewModel {
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
-        chatClient: ConciergeConversationServiceClient
+        chatClient: ConversationService
     ) : this(application, speechCapturing, DefaultImageProvider(), chatClient, null)
 
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
         imageProvider: ImageProvider,
-        chatService: ConciergeConversationServiceClient,
+        chatService: ConversationService,
         dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
