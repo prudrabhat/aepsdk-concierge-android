@@ -54,6 +54,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 internal fun ProductCarousel(
     elements: List<MultimodalElement>,
     onImageClick: (MultimodalElement) -> Unit,
+    onActionClick: (ProductActionButton) -> Unit = {},
     useExtendedProductCards: Boolean = false,
     leadingInset: Dp = 0.dp
 ) {
@@ -85,7 +86,8 @@ internal fun ProductCarousel(
                 ExtendedProductCard(
                     element = elements[index],
                     modifier = Modifier.width(itemWidth).height(cardHeight),
-                    onCardClick = onImageClick
+                    onCardClick = onImageClick,
+                    onActionClick = onActionClick
                 )
             }
         }

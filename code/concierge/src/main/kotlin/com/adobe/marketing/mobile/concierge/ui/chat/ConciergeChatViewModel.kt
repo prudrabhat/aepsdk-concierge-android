@@ -24,6 +24,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
+import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.network.LinkHint
@@ -61,15 +62,27 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
         private const val TAG = "ConciergeChatViewModel"
-        
+
+        /**
+         * User-facing fallback shown in the chat when a conversation cannot be completed
+         * (for example, due to a network, server, or parsing error). Intentionally generic —
+         * the underlying technical detail is sent to logs and telemetry, never to the user.
+         */
+        private const val DEFAULT_CONVERSATION_ERROR_MESSAGE =
+            "Sorry, I encountered an error. Please try again."
+
         /**
          * Initializes the welcome config using the parser example
          * In the finalized implementation, the config contained in the mock response would
@@ -133,6 +146,15 @@ class ConciergeChatViewModel : AndroidViewModel {
         UserInputState.Empty
     )
     internal val inputState: StateFlow<UserInputState> = _inputState.asStateFlow()
+
+    /**
+     * Flips only when the input transitions between empty and non-empty.
+     * Collected by the screen-level composable so it doesn't recompose on every character typed.
+     */
+    internal val isInputEmpty: StateFlow<Boolean> = _inputState
+        .map { it is UserInputState.Empty || it is UserInputState.Error }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     /**
      * List of chat messages in the conversation
@@ -253,7 +275,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Chat service client for handling conversation API calls
      */
-    private val chatService: ConciergeConversationServiceClient
+    private val chatService: ConversationService
 
     /**
      * Dispatch function for sending tracking events to the AEP Event Hub.
@@ -286,14 +308,14 @@ class ConciergeChatViewModel : AndroidViewModel {
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
-        chatClient: ConciergeConversationServiceClient
+        chatClient: ConversationService
     ) : this(application, speechCapturing, DefaultImageProvider(), chatClient, null)
 
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
         imageProvider: ImageProvider,
-        chatService: ConciergeConversationServiceClient,
+        chatService: ConversationService,
         dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
@@ -364,6 +386,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         override fun onError(error: SpeechCaptureError) {
             handleSpeechError(error)
         }
+
+        override fun onAudioLevelChanged(level: Float) {
+            val current = _inputState.value
+            if (current is UserInputState.Recording) {
+                _inputState.update { current.copy(audioLevel = level) }
+            }
+        }
     }
 
     /**
@@ -405,7 +434,9 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleProductActionClick(button: ProductActionButton, handleLink: ((String) -> Boolean)?) {
         val origin = ConciergeConstants.TrackingEvent.LinkClickOrigin.PRODUCT_CARD
-        val element = mutableMapOf<String, Any>("productName" to button.text)
+        // Report the card's real product name; fall back to the button label only when the payload
+        // carried no product name (e.g. a bare text action).
+        val element = mutableMapOf<String, Any>("productName" to (button.productName ?: button.text))
         button.url?.let { element["productPageURL"] = it }
         dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(element))
 
@@ -594,8 +625,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param message The error message to display
      */
     private fun handleProcessingError(message: String) {
+        Log.error(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Processing error: $message"
+        )
         _state.update { currentState ->
-            ChatScreenState.Error(message)
+            ChatScreenState.Error(DEFAULT_CONVERSATION_ERROR_MESSAGE)
         }
     }
 
@@ -976,10 +1012,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param errorMessage The error message to display
      */
     private fun handleConversationError(errorMessage: String) {
+        // Keep the raw technical detail for diagnostics (logs + telemetry only)...
+        Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Conversation error: $errorMessage")
         dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(errorMessage))
+        // ...but never surface the raw exception to the user. Show generic copy instead.
         replaceAssistantMessageContent(
             ParsedConversationMessage(
-                messageContent = "Sorry, I encountered an error: $errorMessage",
+                messageContent = DEFAULT_CONVERSATION_ERROR_MESSAGE,
                 state = ConversationState.COMPLETED,
             )
         )
@@ -1051,8 +1090,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         val current = _inputState.value
         when (current) {
             is UserInputState.Recording -> {
-                // Normal streaming while recording
-                _inputState.update { UserInputState.Recording(partialText) }
+                // Normal streaming while recording (preserve the live audio level)
+                _inputState.update { current.copy(transcription = partialText) }
             }
             is UserInputState.Editing -> {
                 if (current.isPendingTranscription) {

@@ -178,6 +178,45 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `audio level updates flow into Recording state and survive partial transcription updates`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+
+        fakeSpeech.emitSpeechStarted()
+        val started = vm.inputState.value
+        assertTrue(started is UserInputState.Recording)
+        assertEquals(0f, (started as UserInputState.Recording).audioLevel)
+
+        fakeSpeech.emitAudioLevel(0.6f)
+        val afterLevel = vm.inputState.value
+        assertTrue(afterLevel is UserInputState.Recording)
+        assertEquals(0.6f, (afterLevel as UserInputState.Recording).audioLevel)
+
+        // A subsequent partial transcription should not reset the audio level back to 0
+        fakeSpeech.emitPartialTranscription("hello")
+        val afterPartial = vm.inputState.value
+        assertTrue(afterPartial is UserInputState.Recording)
+        val rec = afterPartial as UserInputState.Recording
+        assertEquals("hello", rec.transcription)
+        assertEquals(0.6f, rec.audioLevel)
+    }
+
+    @Test
+    fun `audio level updates are ignored when not recording`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+
+        // No recording session started; a stray/late level update should have no effect.
+        fakeSpeech.emitAudioLevel(0.9f)
+
+        assertTrue(vm.inputState.value is UserInputState.Empty)
+    }
+
+    @Test
     fun `stop recording transitions to Editing when transcription exists`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
@@ -311,7 +350,7 @@ class ConciergeChatViewModelTest {
 
         vm.processEvent(ChatEvent.Error("bad"))
         val err = vm.state.value as ChatScreenState.Error
-        assertEquals("bad", err.error)
+        assertEquals("Sorry, I encountered an error. Please try again.", err.error)
 
         vm.processEvent(ChatEvent.Reset)
         assertTrue(vm.state.value is ChatScreenState.Idle)
@@ -349,13 +388,12 @@ class ConciergeChatViewModelTest {
         assertTrue(vm.inputState.value is UserInputState.Empty)
     }
 
-    // TODO: Need to revisit tests oncce we finalize how to surface errors
     @Test
-    fun `stream ERROR state adds error chat message and returns Idle`() = runTest {
+    fun `stream ERROR state shows generic copy and returns Idle`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         every { chatClient.chat("Hi") } returns flow {
-            emit(ParsedConversationMessage("oops", ConversationState.ERROR))
+            emit(ParsedConversationMessage("oops-raw-server-detail", ConversationState.ERROR))
         }
 
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
@@ -364,17 +402,18 @@ class ConciergeChatViewModelTest {
 
         val last = vm.messages.value.last()
         assertTrue(!last.isFromUser)
-        assertTrue(last.text.startsWith("Sorry, I encountered an error:"))
+        // User sees the generic, themeable message.
+        assertEquals("Sorry, I encountered an error. Please try again.", last.text)
+        assertTrue(!last.text.contains("oops-raw-server-detail"))
         assertTrue(vm.state.value is ChatScreenState.Idle)
     }
-    
-    // TODO: Need to revisit tests oncce we finalize how to surface errors
+
     @Test
-    fun `exception from chat flow handled as conversation error`() = runTest {
+    fun `exception from chat flow shows generic copy`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         every { chatClient.chat("Hi") } returns flow {
-            throw RuntimeException("boom")
+            throw RuntimeException("HTTP error: -1 null")
         }
 
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
@@ -382,7 +421,9 @@ class ConciergeChatViewModelTest {
         advanceUntilIdle()
 
         val last = vm.messages.value.last()
-        assertTrue(last.text.startsWith("Sorry, I encountered an error:"))
+        // The raw exception text is not shown.
+        assertEquals("Sorry, I encountered an error. Please try again.", last.text)
+        assertTrue(!last.text.contains("HTTP error"))
         assertTrue(vm.state.value is ChatScreenState.Idle)
     }
 
@@ -601,6 +642,7 @@ class ConciergeChatViewModelTest {
         fun emitPartialTranscription(text: String) { listener?.onPartialTranscription(text) }
         fun emitTranscriptionResult(text: String) { listener?.onTranscriptionResult(text) }
         fun emitError(error: SpeechCaptureError) { listener?.onError(error) }
+        fun emitAudioLevel(level: Float) { listener?.onAudioLevelChanged(level) }
     }
 
     @Test
@@ -1318,6 +1360,16 @@ class ConciergeChatViewModelTest {
         vm.handleLinkClick("geo:0,0?q=1+Apple+Park+Way", ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
 
         verify { tryOpenWithSystemHandler(app, "geo:0,0?q=1+Apple+Park+Way") }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with percent-encoded store-locator geo URL calls tryOpenWithSystemHandler`() = runTest {
+        val geoUrl = "geo:0,0?q=The%20Mall%20At%20Robinson%2C%20Pittsburgh%2C%20PA%2015205-4834"
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick(geoUrl, ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
+
+        verify { tryOpenWithSystemHandler(app, geoUrl) }
         assertNull(vm.webviewOverlay.value)
     }
 
