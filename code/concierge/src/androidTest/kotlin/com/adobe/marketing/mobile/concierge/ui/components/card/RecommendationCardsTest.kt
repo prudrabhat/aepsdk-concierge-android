@@ -188,7 +188,12 @@ class RecommendationCardsTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Buy now").performClick()
         assertEquals(
-            ProductActionButton(id = "ext-buy-now_primary", text = "Buy now", url = "https://example.com/checkout"),
+            ProductActionButton(
+                id = "ext-buy-now_primary",
+                text = "Buy now",
+                url = "https://example.com/checkout",
+                productName = "Extended Product"
+            ),
             clickedButton
         )
     }

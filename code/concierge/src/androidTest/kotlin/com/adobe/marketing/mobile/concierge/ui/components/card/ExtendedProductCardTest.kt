@@ -344,7 +344,12 @@ class ExtendedProductCardTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Buy now").performClick()
         assertEquals(
-            ProductActionButton(id = "buy-now-click_primary", text = "Buy now", url = "https://example.com/checkout"),
+            ProductActionButton(
+                id = "buy-now-click_primary",
+                text = "Buy now",
+                url = "https://example.com/checkout",
+                productName = "Product Name"
+            ),
             clicked
         )
     }
