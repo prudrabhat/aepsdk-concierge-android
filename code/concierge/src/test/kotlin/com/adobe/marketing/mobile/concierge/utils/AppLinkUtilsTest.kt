@@ -85,6 +85,23 @@ class AppLinkUtilsTest {
         verify { Log.debug(any(), any(), match { it.contains("tryOpenWithSystemHandler failed") }) }
     }
 
+    @Test
+    fun `tryOpenWithSystemHandler routes a geo URL to the system handler with FLAG_ACTIVITY_NEW_TASK`() {
+        val geoUrl = "geo:0,0?q=The%20Mall%20At%20Robinson%2C%20Pittsburgh%2C%20PA%2015205-4834"
+        val intentSlot = slot<Intent>()
+        every { context.startActivity(capture(intentSlot)) } just Runs
+
+        tryOpenWithSystemHandler(context, geoUrl)
+
+        verify { context.startActivity(any()) }
+        val captured = intentSlot.captured
+        assertTrue(
+            "Expected FLAG_ACTIVITY_NEW_TASK to be set",
+            captured.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0
+        )
+        assertTrue(captured.data.toString().startsWith("geo:"))
+    }
+
     // ---- tryOpenAsAppLink: early exits (API-agnostic) ----
 
     @Test
