@@ -140,7 +140,10 @@ internal object ConciergeStyles {
         val outerShape: Shape,
         val innerShape: Shape,
         val outerPadding: Dp,
-        val innerPadding: Dp,
+        /** Padding between the pill's edge and its content -- spec is `padding: 16px 12px`. */
+        val innerPadding: PaddingValues,
+        /** Gap between the leading AI-chat icon and the text field. */
+        val leadingIconSpacing: Dp,
         val backgroundColor: Color,
         val borderColor: Color?,
         val borderGradient: ConciergeGradient?,
@@ -149,6 +152,7 @@ internal object ConciergeStyles {
         val focusBorderWidth: Dp,
         val recordingBorderColors: List<Color>,
         val recordingBorderAnimationDuration: Int,
+        /** Gap between the text field and the action-button group (clear/mic/send). */
         val buttonSpacing: Dp,
         val placeholderText: String,
         val listeningPlaceholderText: String
@@ -170,7 +174,8 @@ internal object ConciergeStyles {
                 outerShape = RoundedCornerShape(outerRadius),
                 innerShape = RoundedCornerShape(innerRadius),
                 outerPadding = 2.dp,
-                innerPadding = 4.dp,
+                innerPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+                leadingIconSpacing = 4.dp,
                 backgroundColor = themeColors.inputBackground ?: themeColors.container,
                 borderColor = themeColors.inputOutline ?: themeColors.outline,
                 borderGradient = themeColors.inputOutlineGradient,
@@ -943,6 +948,18 @@ internal object ConciergeStyles {
     )
 
     /**
+     * Shared icon size for every icon in the input row -- leading AI-chat icon, clear (x), mic,
+     * send, and stop-recording -- a single knob matching iOS's `theme.layout.inputButtonWidth`/
+     * `inputButtonHeight`. Either CSS key alone is enough to override the default; width wins when
+     * both are set, since these icons are always rendered square.
+     */
+    val inputRowIconSize: Dp
+        @Composable get() {
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
+            return (cssLayout?.inputButtonWidth ?: cssLayout?.inputButtonHeight)?.dp ?: 24.dp
+        }
+
+    /**
      * Styling for microphone button
      */
     @Immutable
@@ -966,7 +983,7 @@ internal object ConciergeStyles {
             val micIconColor = themeColors.micIconColor ?: micColor
             val pulsingBackgroundEnabled = ConciergeTheme.behavior?.enableMicPulseBackground ?: true
             return MicButtonStyle(
-                size = 24.dp,
+                size = inputRowIconSize,
                 iconColor = micIconColor,
                 iconGradient = themeColors.micIconGradient,
                 recordingIconColor = themeColors.micRecordingIconColor
@@ -999,7 +1016,7 @@ internal object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             val sendButtonStyleName = ConciergeTheme.behavior?.sendButtonStyle ?: "default"
             return SendButtonStyle(
-                size = 24.dp,
+                size = inputRowIconSize,
                 enabledIconColor = themeColors.sendIconColor ?: themeColors.onSurface,
                 arrowCircleColor = themeColors.sendArrowBackgroundColor ?: themeColors.sendIconColor ?: themeColors.primary,
                 arrowCircleGradient = themeColors.sendArrowBackgroundGradient,
@@ -1099,11 +1116,11 @@ internal object ConciergeStyles {
      */
     @Immutable
     data class ChatTextFieldStyle(
-        val horizontalPadding: Dp,
         val maxLines: Int,
         val textStyle: TextStyle,
         val placeholderTextColor: Color,
-        val fontSize: TextUnit? = null
+        val fontSize: TextUnit? = null,
+        val disabledAlpha: Float = 0.5f
     )
 
     val chatTextFieldStyle: ChatTextFieldStyle
@@ -1112,7 +1129,6 @@ internal object ConciergeStyles {
             val themeTypography = ConciergeTheme.typography
             val fontSize = themeTypography?.inputFontSize?.sp
             return ChatTextFieldStyle(
-                horizontalPadding = 8.dp,
                 maxLines = 10,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = themeColors.inputText ?: themeColors.onSurface,
