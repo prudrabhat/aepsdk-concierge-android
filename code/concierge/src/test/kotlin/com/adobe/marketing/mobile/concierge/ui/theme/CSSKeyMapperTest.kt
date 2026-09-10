@@ -991,6 +991,140 @@ class CSSKeyMapperTest {
     }
 
     // -----------------------------------------------------------------------
+    // Layout - Product card CTA button
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps product-card-cta-button-border-radius`() {
+        val result = CSSKeyMapper.apply("--product-card-cta-button-border-radius", "99px", emptyTheme)
+        assertEquals(99.0, result.cssLayout?.productCardCtaButtonBorderRadius)
+    }
+
+    @Test
+    fun `apply maps product-card-cta-button-horizontal-padding`() {
+        val result = CSSKeyMapper.apply("--product-card-cta-button-horizontal-padding", "16px", emptyTheme)
+        assertEquals(16.0, result.cssLayout?.productCardCtaButtonHorizontalPadding)
+    }
+
+    @Test
+    fun `apply maps product-card-cta-button-vertical-padding`() {
+        val result = CSSKeyMapper.apply("--product-card-cta-button-vertical-padding", "12px", emptyTheme)
+        assertEquals(12.0, result.cssLayout?.productCardCtaButtonVerticalPadding)
+    }
+
+    @Test
+    fun `apply maps product-card-cta-button-font-size`() {
+        val result = CSSKeyMapper.apply("--product-card-cta-button-font-size", "14px", emptyTheme)
+        assertEquals(14.0, result.cssLayout?.productCardCtaButtonFontSize)
+    }
+
+    @Test
+    fun `apply maps product-card-cta-button-font-weight`() {
+        val result = CSSKeyMapper.apply("--product-card-cta-button-font-weight", "400", emptyTheme)
+        assertEquals(400, result.cssLayout?.productCardCtaButtonFontWeight)
+    }
+
+    @Test
+    fun `apply falls back to ProductCardCtaButton defaults for malformed values`() {
+        // A malformed (unparseable) value must land on the same defaults ConciergeStyles applies
+        // when the key is absent, not on the generic cta-button numbers.
+        val radius = CSSKeyMapper.apply("--product-card-cta-button-border-radius", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.BORDER_RADIUS,
+            radius.cssLayout?.productCardCtaButtonBorderRadius
+        )
+
+        val horizontal = CSSKeyMapper.apply("--product-card-cta-button-horizontal-padding", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.HORIZONTAL_PADDING,
+            horizontal.cssLayout?.productCardCtaButtonHorizontalPadding
+        )
+
+        val vertical = CSSKeyMapper.apply("--product-card-cta-button-vertical-padding", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.VERTICAL_PADDING,
+            vertical.cssLayout?.productCardCtaButtonVerticalPadding
+        )
+
+        val fontSize = CSSKeyMapper.apply("--product-card-cta-button-font-size", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.FONT_SIZE,
+            fontSize.cssLayout?.productCardCtaButtonFontSize
+        )
+
+        val fontWeight = CSSKeyMapper.apply("--product-card-cta-button-font-weight", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardCtaButtonDefaults.FONT_WEIGHT,
+            fontWeight.cssLayout?.productCardCtaButtonFontWeight
+        )
+    }
+
+    @Test
+    fun `apply maps all product-card-cta-button layout properties independently`() {
+        var theme = CSSKeyMapper.apply("--product-card-cta-button-border-radius", "24px", emptyTheme)
+        theme = CSSKeyMapper.apply("--product-card-cta-button-horizontal-padding", "20px", theme)
+        theme = CSSKeyMapper.apply("--product-card-cta-button-vertical-padding", "8px", theme)
+        theme = CSSKeyMapper.apply("--product-card-cta-button-font-size", "16px", theme)
+        theme = CSSKeyMapper.apply("--product-card-cta-button-font-weight", "700", theme)
+        assertEquals(24.0, theme.cssLayout?.productCardCtaButtonBorderRadius)
+        assertEquals(20.0, theme.cssLayout?.productCardCtaButtonHorizontalPadding)
+        assertEquals(8.0, theme.cssLayout?.productCardCtaButtonVerticalPadding)
+        assertEquals(16.0, theme.cssLayout?.productCardCtaButtonFontSize)
+        assertEquals(700, theme.cssLayout?.productCardCtaButtonFontWeight)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains product card cta button layout keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("product-card-cta-button-border-radius"))
+        assertTrue(keys.contains("product-card-cta-button-horizontal-padding"))
+        assertTrue(keys.contains("product-card-cta-button-vertical-padding"))
+        assertTrue(keys.contains("product-card-cta-button-font-size"))
+        assertTrue(keys.contains("product-card-cta-button-font-weight"))
+    }
+
+    // -----------------------------------------------------------------------
+    // Colors - Product card CTA button
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps product-card-cta-button-background-color`() {
+        val result = CSSKeyMapper.apply("--product-card-cta-button-background-color", "#EDEDED", emptyTheme)
+        assertNotNull(result.colors?.productCardCtaButton?.backgroundColor)
+        assertEquals("#EDEDED", result.colors?.productCardCtaButton?.backgroundColor)
+    }
+
+    @Test
+    fun `apply maps product-card-cta-button-text-color`() {
+        val result = CSSKeyMapper.apply("--product-card-cta-button-text-color", "#191F1C", emptyTheme)
+        assertNotNull(result.colors?.productCardCtaButton?.textColor)
+        assertEquals("#191F1C", result.colors?.productCardCtaButton?.textColor)
+    }
+
+    @Test
+    fun `apply maps both product-card-cta-button colors independently`() {
+        var theme = CSSKeyMapper.apply("--product-card-cta-button-background-color", "#FFFFFF", emptyTheme)
+        theme = CSSKeyMapper.apply("--product-card-cta-button-text-color", "#000000", theme)
+        assertEquals("#FFFFFF", theme.colors?.productCardCtaButton?.backgroundColor)
+        assertEquals("#000000", theme.colors?.productCardCtaButton?.textColor)
+    }
+
+    @Test
+    fun `apply preserves other product-card-cta-button colors when setting one`() {
+        val withBackground = CSSKeyMapper.apply("--product-card-cta-button-background-color", "#EDEDED", emptyTheme)
+        val withBoth = CSSKeyMapper.apply("--product-card-cta-button-text-color", "#191F1C", withBackground)
+        assertEquals("#EDEDED", withBoth.colors?.productCardCtaButton?.backgroundColor)
+        assertEquals("#191F1C", withBoth.colors?.productCardCtaButton?.textColor)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains product card cta button color keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("product-card-cta-button-background-color"))
+        assertTrue(keys.contains("product-card-cta-button-text-color"))
+    }
+
+    // -----------------------------------------------------------------------
     // Existing theme fields are preserved on incremental apply
     // -----------------------------------------------------------------------
 

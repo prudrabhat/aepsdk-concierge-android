@@ -150,6 +150,9 @@ internal object CSSKeyMapper {
     private fun updateCtaButtonColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeCtaButtonColors?, String) -> ConciergeCtaButtonColors) =
         updateNestedColors(cssValue, theme, { it?.ctaButton }, { c, v -> c?.copy(ctaButton = v) ?: ConciergeThemeColors(ctaButton = v) }, updater)
 
+    private fun updateProductCardCtaButtonColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeProductCardCtaButtonColors?, String) -> ConciergeProductCardCtaButtonColors) =
+        updateNestedColors(cssValue, theme, { it?.productCardCtaButton }, { c, v -> c?.copy(productCardCtaButton = v) ?: ConciergeThemeColors(productCardCtaButton = v) }, updater)
+
     private fun updateCitationColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeCitationColors?, String) -> ConciergeCitationColors) =
         updateNestedColors(cssValue, theme, { it?.citation }, { c, v -> c?.copy(citation = v) ?: ConciergeThemeColors(citation = v) }, updater)
 
@@ -984,6 +987,55 @@ internal object CSSKeyMapper {
         },
 
         // Colors - CTA Button: "cta-button-background/text/icon-color" are generated via colorCssAssignments.
+
+        // Layout - Product card CTA button
+        "product-card-cta-button-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.BORDER_RADIUS
+                layout?.copy(productCardCtaButtonBorderRadius = radius) ?: ConciergeLayout(productCardCtaButtonBorderRadius = radius)
+            }
+        },
+        "product-card-cta-button-horizontal-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.HORIZONTAL_PADDING
+                layout?.copy(productCardCtaButtonHorizontalPadding = padding) ?: ConciergeLayout(productCardCtaButtonHorizontalPadding = padding)
+            }
+        },
+        "product-card-cta-button-vertical-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.VERTICAL_PADDING
+                layout?.copy(productCardCtaButtonVerticalPadding = padding) ?: ConciergeLayout(productCardCtaButtonVerticalPadding = padding)
+            }
+        },
+        "product-card-cta-button-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.FONT_SIZE
+                layout?.copy(productCardCtaButtonFontSize = size) ?: ConciergeLayout(productCardCtaButtonFontSize = size)
+            }
+        },
+        "product-card-cta-button-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeightOrNull(cssValue)
+                    ?: ConciergeStyles.ProductCardCtaButtonDefaults.FONT_WEIGHT
+                layout?.copy(productCardCtaButtonFontWeight = weight) ?: ConciergeLayout(productCardCtaButtonFontWeight = weight)
+            }
+        },
+
+        // Colors - Product card CTA button (using helper)
+        "product-card-cta-button-background-color" to { cssValue, theme ->
+            updateProductCardCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(backgroundColor = color) ?: ConciergeProductCardCtaButtonColors(backgroundColor = color)
+            }
+        },
+        "product-card-cta-button-text-color" to { cssValue, theme ->
+            updateProductCardCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(textColor = color) ?: ConciergeProductCardCtaButtonColors(textColor = color)
+            }
+        },
 
         // Components - Feedback
         "feedback-icon-btn-size-desktop" to { cssValue, theme ->

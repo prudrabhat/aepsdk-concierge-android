@@ -48,6 +48,20 @@ internal fun defaultRecordingIconColor(pulsingBackgroundEnabled: Boolean, onPrim
 internal object ConciergeStyles {
 
     /**
+     * Default values for the product card CTA button, matching the "Vertical Card - With
+     * description" button spec. Shared as the single source of truth between this style's
+     * getter ([productCardCtaButtonStyle]) and [CSSKeyMapper]'s parse-failure fallbacks so the
+     * two can't drift apart.
+     */
+    object ProductCardCtaButtonDefaults {
+        const val BORDER_RADIUS = 40.0
+        const val HORIZONTAL_PADDING = 16.0
+        const val VERTICAL_PADDING = 8.0
+        const val FONT_SIZE = 12.0
+        const val FONT_WEIGHT = 600
+    }
+
+    /**
      * Helper function to apply theme typography (font family and line height) to a TextStyle
      */
     @Composable
@@ -736,6 +750,55 @@ internal object ConciergeStyles {
                     fontWeight = fontWeight
                 ),
                 textColor = themeColors.ctaButtonText ?: Color(0xFF191F1C)
+            )
+        }
+
+    /**
+     * Styling for the product card's CTA button. Generic and content-agnostic -- the label
+     * comes entirely from the response payload, so it can be used for any action ("Buy now",
+     * "Shop now", "Add to Cart", etc.).
+     */
+    @Immutable
+    data class ProductCardCtaButtonStyle(
+        val containerTopSpacing: Dp,
+        val shape: Shape,
+        val backgroundColor: Color,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
+        val textStyle: TextStyle,
+        val textColor: Color
+    )
+
+    val productCardCtaButtonStyle: ProductCardCtaButtonStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val ctaLayout = ConciergeTheme.tokens?.cssLayout
+            // Defaults match the "Vertical Card - With description" button spec: 40dp
+            // radius (clamps to a full pill at this height anyway), #BB5811 fill, 12sp/600
+            // label, ~32dp fixed height (approximated via vertical padding since this style has
+            // no dedicated fixed-height concept).
+            val borderRadius = ctaLayout?.productCardCtaButtonBorderRadius?.dp
+                ?: ProductCardCtaButtonDefaults.BORDER_RADIUS.dp
+            val fontWeight = ctaLayout?.productCardCtaButtonFontWeight?.let { FontWeight(it) }
+                ?: FontWeight(ProductCardCtaButtonDefaults.FONT_WEIGHT)
+            val fontSize = ctaLayout?.productCardCtaButtonFontSize?.sp
+                ?: ProductCardCtaButtonDefaults.FONT_SIZE.sp
+            return ProductCardCtaButtonStyle(
+                // Matches the "info" auto-layout's gap:16px, which the design applies uniformly
+                // between all stacked children (title/subtitle, price/was-price, and the button).
+                containerTopSpacing = 16.dp,
+                shape = RoundedCornerShape(borderRadius),
+                backgroundColor = themeColors.productCardCtaButtonBackground ?: Color(0xFFBB5811),
+                horizontalPadding = ctaLayout?.productCardCtaButtonHorizontalPadding?.dp
+                    ?: ProductCardCtaButtonDefaults.HORIZONTAL_PADDING.dp,
+                verticalPadding = ctaLayout?.productCardCtaButtonVerticalPadding?.dp
+                    ?: ProductCardCtaButtonDefaults.VERTICAL_PADDING.dp,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = fontSize,
+                    fontWeight = fontWeight,
+                    lineHeight = fontSize * 1.4f
+                ),
+                textColor = themeColors.productCardCtaButtonText ?: Color.White
             )
         }
 

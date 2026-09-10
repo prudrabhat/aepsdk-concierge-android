@@ -154,6 +154,13 @@ data class ConciergeLayout(
     val ctaButtonFontWeight: Int? = null,
     val ctaButtonIconSize: Double? = null,
 
+    // Product card CTA button layout
+    val productCardCtaButtonBorderRadius: Double? = null,
+    val productCardCtaButtonHorizontalPadding: Double? = null,
+    val productCardCtaButtonVerticalPadding: Double? = null,
+    val productCardCtaButtonFontSize: Double? = null,
+    val productCardCtaButtonFontWeight: Int? = null,
+
     // Thinking animation layout
     val thinkingDotSize: Double? = null,
     val thinkingDotSpacing: Double? = null,

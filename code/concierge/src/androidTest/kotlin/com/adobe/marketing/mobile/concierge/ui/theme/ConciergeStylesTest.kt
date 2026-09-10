@@ -1136,4 +1136,68 @@ class ConciergeStylesTest {
         assertEquals(0.dp, style!!.shadowElevation)
         assertEquals(Color.Transparent, style!!.shadowColor)
     }
+
+    // -----------------------------------------------------------------------
+    // productCardCtaButtonStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun productCardCtaButtonStyle_noTokens_usesFigmaDefaults() {
+        var style: ConciergeStyles.ProductCardCtaButtonStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.productCardCtaButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(RoundedCornerShape(40.dp), style!!.shape)
+        assertEquals(Color(0xFFBB5811), style!!.backgroundColor)
+        assertEquals(Color.White, style!!.textColor)
+        assertEquals(16.dp, style!!.horizontalPadding)
+        assertEquals(8.dp, style!!.verticalPadding)
+        assertEquals(12f, style!!.textStyle.fontSize.value, 0.01f)
+        assertEquals(600, style!!.textStyle.fontWeight?.weight ?: 0)
+    }
+
+    @Test
+    fun productCardCtaButtonStyle_withThemeTokens_appliesOverrides() {
+        var style: ConciergeStyles.ProductCardCtaButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    productCardCtaButtonBorderRadius = 99.0,
+                    productCardCtaButtonHorizontalPadding = 20.0,
+                    productCardCtaButtonVerticalPadding = 10.0,
+                    productCardCtaButtonFontSize = 14.0,
+                    productCardCtaButtonFontWeight = 700
+                ),
+                colors = ConciergeThemeColors(
+                    productCardCtaButton = ConciergeProductCardCtaButtonColors(
+                        backgroundColor = "#D32F2F",
+                        textColor = "#000000"
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.productCardCtaButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(RoundedCornerShape(99.dp), style!!.shape)
+        assertEquals(Color(0xFFD32F2F), style!!.backgroundColor)
+        assertEquals(Color(0xFF000000), style!!.textColor)
+        assertEquals(20.dp, style!!.horizontalPadding)
+        assertEquals(10.dp, style!!.verticalPadding)
+        assertEquals(14f, style!!.textStyle.fontSize.value, 0.01f)
+        assertEquals(700, style!!.textStyle.fontWeight?.weight ?: 0)
+    }
 }

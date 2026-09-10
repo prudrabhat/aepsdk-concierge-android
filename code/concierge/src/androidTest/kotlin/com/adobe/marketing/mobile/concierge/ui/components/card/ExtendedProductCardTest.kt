@@ -24,10 +24,10 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
@@ -37,6 +37,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -109,20 +110,250 @@ class ExtendedProductCardTest {
     }
 
     @Test
-    fun extendedProductCardDemoScreen_rendersLineCountAndContentVariantCards() {
+    fun extendedProductCard_displaysCtaButton_withPayloadText() {
+        val element = MultimodalElement(
+            id = "buy-now",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout"
+            )
+        )
+
         composeTestRule.setContent {
-            ExtendedProductCardDemoScreen()
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
         }
 
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Title & Description Variants").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Content Variations").assertIsDisplayed()
-        // This title appears on two sample cards, so assert via the first match rather
-        // than a single-node lookup.
-        composeTestRule.onAllNodesWithText("Product Name Goes Here Long Title Two Lines")
-            .onFirst()
-            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Buy now").assertIsDisplayed()
     }
+
+    @Test
+    fun extendedProductCard_ctaButtonLabel_reflectsPayloadText() {
+        val element = MultimodalElement(
+            id = "shop-now",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Shop Now",
+                "primaryUrl" to "https://example.com/checkout"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Shop Now").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_hidesCtaButton_whenNoPrimaryAction() {
+        val element = MultimodalElement(
+            id = "no-primary-action",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_hidesCtaButton_whenNoPrimaryUrl() {
+        val element = MultimodalElement(
+            id = "no-primary-url",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_hidesCtaButton_whenPrimaryUrlIsBlank() {
+        val element = MultimodalElement(
+            id = "blank-primary-url",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "   "
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(CTA_BUTTON_TEST_TAG).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_ctaClick_firesActionClick_notCardClick() {
+        var actionClicks = 0
+        var cardClicks = 0
+        val element = MultimodalElement(
+            id = "cta-click-isolation",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight),
+                        onCardClick = { cardClicks++ },
+                        onActionClick = { actionClicks++ }
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(CTA_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitForIdle()
+
+        // Tapping the CTA must route only through onActionClick; the card's own click must not
+        // also fire now that both live on one card.
+        assertEquals(1, actionClicks)
+        assertEquals(0, cardClicks)
+    }
+
+    @Test
+    fun extendedProductCard_hidesCtaButton_whenSubtitlePresent_evenWithPrimaryAction() {
+        val element = MultimodalElement(
+            id = "buy-now-with-subtitle",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productDescription" to "Subtitle text goes here",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").assertDoesNotExist()
+    }
+
+    @Test
+    fun extendedProductCard_invokesOnActionClick_withTappedButton() {
+        val element = MultimodalElement(
+            id = "buy-now-click",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout"
+            )
+        )
+        var clicked: ProductActionButton? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight),
+                        onActionClick = { clicked = it }
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Buy now").performClick()
+        assertEquals(
+            ProductActionButton(
+                id = "buy-now-click_primary",
+                text = "Buy now",
+                url = "https://example.com/checkout",
+                productName = "Product Name"
+            ),
+            clicked
+        )
+    }
+
 
     // -----------------------------------------------------------------------
     // Drop shadow rendering (--multimodal-card-box-shadow)

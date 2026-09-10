@@ -49,11 +49,22 @@ import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/**
+ * Seam for supplying conversation responses to [ConciergeChatViewModel]. Production uses
+ * [ConciergeConversationServiceClient]; a debug-only fake implements this to feed canned responses
+ * through the real ViewModel/render pipeline without a backend.
+ */
+internal interface ConversationService {
+    fun chat(message: String): Flow<ParsedConversationMessage>
+    suspend fun sendFeedback(feedback: Feedback): Boolean
+    fun cleanup()
+}
+
 internal class ConciergeConversationServiceClient(
     private val stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
     private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-) {
+) : ConversationService {
 
     companion object {
         private const val TAG = "ConciergeConversationServiceClient"
@@ -92,7 +103,7 @@ internal class ConciergeConversationServiceClient(
      *
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
-    fun chat(message: String): Flow<ParsedConversationMessage> = flow {
+    override fun chat(message: String): Flow<ParsedConversationMessage> = flow {
         val requestBody = createRequestBody(message, stateRepository.state.value)
         val request = createConversationServiceRequest(endpoint, requestBody)
 
@@ -355,7 +366,7 @@ internal class ConciergeConversationServiceClient(
      * @param feedback The feedback containing turnId, rating, categories, and notes
      * @return true if the feedback was successfully sent, false otherwise
      */
-    suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
         try {
             val state = stateRepository.state.value
             val requestBody = createFeedbackRequestBody(feedback, state)
@@ -468,7 +479,7 @@ internal class ConciergeConversationServiceClient(
      * Cleanup method to cancel any ongoing network operations.
      * Should be called when the client is no longer needed to prevent memory leaks.
      */
-    fun cleanup() {
+    override fun cleanup() {
         scope.cancel()
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
