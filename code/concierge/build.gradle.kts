@@ -61,6 +61,9 @@ dependencies {
     // Lifecycle compose for collectAsStateWithLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
+    // Debug-only: viewModel() + factory DSL for the product-card demo (debug source set).
+    debugImplementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+
     // AEP SDK
     implementation("com.adobe.marketing.mobile:core:$mavenCoreVersion")
     implementation("com.adobe.marketing.mobile:edgeidentity:$mavenEdgeIdentityVersion")

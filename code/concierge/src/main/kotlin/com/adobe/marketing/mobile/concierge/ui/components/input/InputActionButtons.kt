@@ -21,10 +21,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material3.Icon
@@ -36,8 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.components.image.assetBitmapCache
 import com.adobe.marketing.mobile.concierge.ui.components.image.loadAssetBitmap
@@ -59,6 +59,9 @@ import kotlinx.coroutines.withContext
  * @param onVoiceCancel Callback when recording should be stopped
  * @param onSend Callback when send button is pressed
  * @param onClear Callback when clear button is pressed to clear the input text
+ * @param buttonSpacing Gap between adjacent action buttons; defaults to the shared input-panel
+ * style, but callers that already hold that style (e.g. [ChatInputPanel]) should pass it in
+ * directly rather than have it recomputed here.
  */
 @Composable
 internal fun InputActionButtons(
@@ -69,58 +72,72 @@ internal fun InputActionButtons(
     onMicPressed: () -> Unit,
     onVoiceCancel: () -> Unit,
     onSend: (String) -> Unit,
-    onClear: () -> Unit = {}
+    onClear: () -> Unit = {},
+    buttonSpacing: Dp = ConciergeStyles.inputPanelStyle.buttonSpacing
 ) {
     val micButtonStyle = ConciergeStyles.micButtonStyle
-    val sendButtonStyle = ConciergeStyles.sendButtonStyle
 
     // Check if voice input is enabled from theme behavior
     val enableVoiceInput = ConciergeTheme.behavior?.enableVoiceInput ?: true
 
     Row(
         modifier = modifier
-            .animateContentSize(animationSpec = spring(dampingRatio = 0.75f, stiffness = 300f))
-            .padding(end = 8.dp)
-        ,
+            .animateContentSize(animationSpec = spring(dampingRatio = 0.75f, stiffness = 300f)),
+        // Spec gap between adjacent action buttons (e.g. clear + send). The gap to the text field
+        // and the pill's edge padding are provided by ChatInputPanel, so no end padding here.
+        horizontalArrangement = Arrangement.spacedBy(buttonSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Tap-area size for mic / clear / stop buttons. Sized to match the OutlinedTextField's
-        // minimum height so the row stays a uniform 56dp when the field is empty/single-line —
-        // this eliminates the vertical gap that appeared with Alignment.Bottom.
-        val micContainerSize = 56.dp
+        // Every icon in the row (mic, clear, stop, send) renders at the shared glyph size and
+        // relies on the platform's input-layer touch-target expansion rather than a padded layout
+        // container -- so the visible icons sit at the spec's tight spacing instead of being pushed
+        // apart by invisible padding. Grows with the glyph when the theme overrides the icon size.
+        val iconContainerSize = ConciergeStyles.inputRowIconSize
         val hasText = text.isNotBlank()
 
         if (enableVoiceInput) {
             when {
                 // Clear button (X) — only shown when typing
                 hasText && inputState !is UserInputState.Recording -> {
-                    IconButton(
-                        onClick = onClear,
-                        modifier = Modifier.size(micContainerSize)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.close),
-                            contentDescription = "Clear input",
-                        )
-                    }
+                    ClearButton(
+                        size = iconContainerSize,
+                        onClick = onClear
+                    )
                 }
                 // Recording state — animated mic + stop button, both visible together
                 inputState is UserInputState.Recording -> {
+                    // The mic's container must be sized to fit whatever it visually needs while
+                    // recording, or this Row's animateContentSize (which clips to its own bounds)
+                    // truncates the overflow: either the enlarged glyph when there's no pulsing
+                    // disc (see micIconSize), or the pulsing ring's peak size when the disc is
+                    // shown -- the ring scales up to pulseScaleRange.second, well past the base
+                    // glyph size.
+                    val micSize = if (micButtonStyle.pulsingBackgroundEnabled) {
+                        iconContainerSize * micButtonStyle.pulseScaleRange.second
+                    } else {
+                        micIconSize(
+                            baseSize = iconContainerSize,
+                            isRecording = true,
+                            showPulsingBackground = false
+                        )
+                    }
                     MicButton(
-                        modifier = Modifier.size(micContainerSize),
+                        modifier = Modifier.size(micSize),
                         userInputState = inputState,
                         isEnabled = true,
                         onClick = {} // animation tap no longer stops recording — stop button does
                     )
                     StopRecordingButton(
-                        modifier = Modifier.size(micContainerSize),
+                        // Stop's own glyph always renders at MIC_INNER_DISC_SCALE (see
+                        // StopRecordingButton), so its container always matches that enlarged size.
+                        modifier = Modifier.size(iconContainerSize * MIC_INNER_DISC_SCALE),
                         onClick = onVoiceCancel
                     )
                 }
                 // Idle — mic icon, tap to start recording
                 else -> {
                     MicButton(
-                        modifier = Modifier.size(micContainerSize),
+                        modifier = Modifier.size(iconContainerSize),
                         userInputState = inputState,
                         isEnabled = true,
                         onClick = onMicPressed
@@ -129,15 +146,10 @@ internal fun InputActionButtons(
             }
         } else if (hasText) {
             // Voice disabled — clear button (X) accompanies the send button when typing
-            IconButton(
-                onClick = onClear,
-                modifier = Modifier.size(micContainerSize)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.close),
-                    contentDescription = "Clear input",
-                )
-            }
+            ClearButton(
+                size = iconContainerSize,
+                onClick = onClear
+            )
         }
 
         // Send button - only visible when there is text or a response is processing.
@@ -156,7 +168,8 @@ internal fun InputActionButtons(
         ) {
             Row {
                 SendButton(
-                    modifier = Modifier.size(sendButtonStyle.size),
+                    // Shared glyph size, matching mic/clear/leading-icon -- no padded container.
+                    modifier = Modifier.size(iconContainerSize),
                     isEnabled = text.isNotBlank() && !isProcessing,
                     onSend = {
                         if (text.isNotBlank()) {
@@ -166,6 +179,29 @@ internal fun InputActionButtons(
                 )
             }
         }
+    }
+}
+
+/**
+ * Clear (x) button that empties the text field. Shared by both the voice-enabled and
+ * voice-disabled layouts, which otherwise reach this same button from different branches.
+ */
+@Composable
+private fun ClearButton(
+    size: Dp,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(size)
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.close),
+            contentDescription = "Clear input",
+            modifier = Modifier
+                .size(size)
+                .testTag("ClearIconGlyph")
+        )
     }
 }
 
@@ -187,8 +223,8 @@ private fun StopRecordingButton(
         onClick = onClick,
         modifier = modifier
     ) {
-        // Center the glyph inside the 56dp tap area — keeps the stop visually close to the
-        // adjacent mic-wave (also centered in its 56dp container) rather than pushing it to
+        // Center the glyph inside the tap area — keeps the stop visually close to the
+        // adjacent mic-wave (also centered in its own container) rather than pushing it to
         // the panel's right edge, which would leave a large gap between wave and stop.
         if (themedBitmap != null) {
             Image(

@@ -272,19 +272,26 @@ internal object CSSValueConverter {
     }
     
     /**
-     * Parses a CSS font-weight value.
-     * Returns numeric weight (400, 500, 600, 700, etc.)
+     * Parses a CSS font-weight value, or null when the value is neither a recognized keyword nor a
+     * numeric weight. Lets callers apply their own default on a malformed value instead of silently
+     * collapsing to 400.
      */
-    fun parseFontWeight(cssValue: String): Int {
+    fun parseFontWeightOrNull(cssValue: String): Int? {
         val trimmed = cssValue.trim()
         return when (trimmed.lowercase()) {
             "normal" -> 400
             "bold" -> 700
             "lighter" -> 300
             "bolder" -> 700
-            else -> trimmed.toIntOrNull() ?: 400
+            else -> trimmed.toIntOrNull()
         }
     }
+
+    /**
+     * Parses a CSS font-weight value.
+     * Returns numeric weight (400, 500, 600, 700, etc.), defaulting to 400 on a malformed value.
+     */
+    fun parseFontWeight(cssValue: String): Int = parseFontWeightOrNull(cssValue) ?: 400
     
     /**
      * Parses a CSS order value for flexbox.

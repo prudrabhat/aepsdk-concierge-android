@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.concierge.ConciergeAuthTokenHolder
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
@@ -48,11 +49,22 @@ import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/**
+ * Seam for supplying conversation responses to [ConciergeChatViewModel]. Production uses
+ * [ConciergeConversationServiceClient]; a debug-only fake implements this to feed canned responses
+ * through the real ViewModel/render pipeline without a backend.
+ */
+internal interface ConversationService {
+    fun chat(message: String): Flow<ParsedConversationMessage>
+    suspend fun sendFeedback(feedback: Feedback): Boolean
+    fun cleanup()
+}
+
 internal class ConciergeConversationServiceClient(
     private val stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
     private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-) {
+) : ConversationService {
 
     companion object {
         private const val TAG = "ConciergeConversationServiceClient"
@@ -92,7 +104,7 @@ internal class ConciergeConversationServiceClient(
      *
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
-    fun chat(message: String): Flow<ParsedConversationMessage> = flow {
+    override fun chat(message: String): Flow<ParsedConversationMessage> = flow {
         val requestBody = createRequestBody(message, stateRepository.state.value)
         val request = createConversationServiceRequest(endpoint, requestBody)
 
@@ -134,30 +146,64 @@ internal class ConciergeConversationServiceClient(
     }.flowOn(Dispatchers.IO)
 
     /**
+     * Resolves the app-supplied auth token and renders it as the `data` field of the enclosing
+     * object, or null when no token is available so the `data` key can be omitted from the
+     * payload entirely rather than sent as null or empty.
+     */
+    private fun authDataPart(): String? {
+        val token = ConciergeAuthTokenHolder.resolveToken() ?: return null
+        return """"data": {"type": "auth", "payload": {"token": "${token.escapedForJson()}"}}"""
+    }
+
+    /**
+     * Escapes a value so it can be embedded in a JSON string literal.
+     */
+    private fun String.escapedForJson(): String = buildString(length) {
+        for (c in this@escapedForJson) {
+            when {
+                c == '\\' -> append("\\\\")
+                c == '"' -> append("\\\"")
+                c == '\n' -> append("\\n")
+                c == '\r' -> append("\\r")
+                c == '\t' -> append("\\t")
+                c.code < 0x20 -> append("\\u%04x".format(c.code))
+                else -> append(c)
+            }
+        }
+    }
+
+    /**
      * Creates the JSON request body for the conversation request.
      */
     private fun createRequestBody(message: String, state: ConciergeState): String {
         val surfaces = state.surfaces
+        check(surfaces.any { it.isNotBlank() }) {
+            "Unable to create Concierge request payload. No surfaces were provided."
+        }
+        val conversationFields = listOfNotNull(
+            """"surfaces": ${surfaces.joinToString(",", "[", "]") { "\"${it.escapedForJson()}\"" }}""",
+            """"message": "${message.escapedForJson()}"""",
+            authDataPart()
+        ).joinToString(",")
         return """
         {
             "events": [
                 {
                     "meta": {
                          "consent": {
-                            "state": "${state.consent}"
+                            "state": "${state.consent?.escapedForJson() ?: "null"}"
                         }
                     },
                     "query": {
                         "conversation": {
-                            "surfaces": ${surfaces.joinToString(",", "[\"", "\"]") { it }},
-                            "message": "${message.replace("\"", "\\\"")}"
+                            $conversationFields
                         }
                     },
                     "xdm": {
                         "identityMap": {
                             "ECID": [
                                 {
-                                    "id": "${state.experienceCloudId}"
+                                    "id": "${state.experienceCloudId?.escapedForJson() ?: "null"}"
                                 }
                             ]
                         }
@@ -321,7 +367,7 @@ internal class ConciergeConversationServiceClient(
      * @param feedback The feedback containing turnId, rating, categories, and notes
      * @return true if the feedback was successfully sent, false otherwise
      */
-    suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
         try {
             val state = stateRepository.state.value
             val requestBody = createFeedbackRequestBody(feedback, state)
@@ -354,16 +400,29 @@ internal class ConciergeConversationServiceClient(
             TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000 // offset in minutes
 
         val rawArray = if (feedback.notes.isNotBlank()) {
-            """[{"text": "${feedback.notes.replace("\"", "\\\"")}","purpose": "user input"}]"""
+            """[{"text": "${feedback.notes.escapedForJson()}","purpose": "user input"}]"""
         } else {
             "[]"
         }
 
-        val conversationIdLine = feedback.conversationId?.let {
-            """"conversationID": "$it","""
-        } ?: ""
-
         val isPositive = feedback.feedbackType == FeedbackType.POSITIVE
+
+        val feedbackField = """"feedback": {
+                    "source": "end-user",
+                    "raw": $rawArray,
+                    "rating": {
+                        "score": ${if (isPositive) 1 else 0},
+                        "classification": "${if (isPositive) "Thumbs Up" else "Thumbs Down"}",
+                        "reasons": [${feedback.selectedCategories.joinToString(",") { "\"${it.escapedForJson()}\"" }}]
+                    }
+                }"""
+
+        val xdmConversationFields = listOfNotNull(
+            feedbackField,
+            feedback.conversationId?.let { """"conversationID": "${it.escapedForJson()}"""" },
+            """"turnID": "${feedback.interactionId.escapedForJson()}"""",
+            authDataPart()
+        ).joinToString(",")
 
         // TODO: this has to be formalized in a JSON structure once the data model is finalized.
         return """
@@ -371,27 +430,17 @@ internal class ConciergeConversationServiceClient(
     "events": [{
         "meta": {
             "consent": {
-                "state": "${state.consent}"
+                "state": "${state.consent?.escapedForJson() ?: "null"}"
             }
         },
         "xdm": {
             "identityMap": {
                 "ECID": [{
-                    "id": "${state.experienceCloudId}"
+                    "id": "${state.experienceCloudId?.escapedForJson() ?: "null"}"
                 }]
             },
             "conversation": {
-                "feedback": {
-                    "source": "end-user",
-                    "raw": $rawArray,
-                    "rating": {
-                        "score": ${if (isPositive) 1 else 0},
-                        "classification": "${if (isPositive) "Thumbs Up" else "Thumbs Down"}",
-                        "reasons": [${feedback.selectedCategories.joinToString(",") { "\"$it\"" }}]
-                    }
-                },
-                $conversationIdLine
-                "turnID": "${feedback.interactionId}"
+                $xdmConversationFields
             },
             "eventType": "conversation.feedback",
             "timestamp": "$timestamp",
@@ -431,7 +480,7 @@ internal class ConciergeConversationServiceClient(
      * Cleanup method to cancel any ongoing network operations.
      * Should be called when the client is no longer needed to prevent memory leaks.
      */
-    fun cleanup() {
+    override fun cleanup() {
         scope.cancel()
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,

@@ -115,6 +115,10 @@ data class ConciergeColors(
     val ctaButtonText: Color? = null,
     val ctaButtonIcon: Color? = null,
 
+    // Product card CTA button colors (from CSS themes)
+    val productCardCtaButtonBackground: Color? = null,
+    val productCardCtaButtonText: Color? = null,
+
     // Thinking animation colors (from CSS themes)
     val thinkingDotColor: Color? = null
 )

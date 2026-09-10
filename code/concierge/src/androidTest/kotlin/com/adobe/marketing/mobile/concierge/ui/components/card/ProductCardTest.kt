@@ -155,6 +155,29 @@ class ProductCardTest {
     }
 
     @Test
+    fun productCard_hidesActionButton_whenTextIsWhitespaceOnly() {
+        val element = MultimodalElement(
+            id = "product-whitespace",
+            title = "Product with blank action",
+            url = "https://example.com/product.jpg",
+            content = mapOf(
+                "primaryText" to "   ",
+                "primaryUrl" to "https://example.com/infopage"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ProductCard(element = element)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("   ").assertDoesNotExist()
+    }
+
+    @Test
     fun productCard_triggersOnActionClick() {
         var clickedButton: ProductActionButton? = null
         

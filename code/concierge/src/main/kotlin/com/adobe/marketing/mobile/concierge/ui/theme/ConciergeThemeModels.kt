@@ -103,6 +103,7 @@ internal fun ConciergeThemeConfig.toWelcomeConfig(
 data class ConciergeTextStrings(
     // Input
     val inputPlaceholder: String? = null,
+    val inputAiChatIconTooltip: String? = null,
 
     // Welcome
     val welcomeHeading: String? = null,
@@ -171,6 +172,7 @@ data class ConciergeThemeColors(
     val citation: ConciergeCitationColors? = null,
     val welcomePrompt: ConciergeWelcomePromptColors? = null,
     val ctaButton: ConciergeCtaButtonColors? = null,
+    val productCardCtaButton: ConciergeProductCardCtaButtonColors? = null,
     val promptSuggestion: ConciergeWelcomePromptColors? = null,
     val thinking: ConciergeThinkingColors? = null
 )
@@ -282,6 +284,11 @@ data class ConciergeCtaButtonColors(
     val backgroundColor: String? = null,
     val textColor: String? = null,
     val iconColor: String? = null
+)
+
+data class ConciergeProductCardCtaButtonColors(
+    val backgroundColor: String? = null,
+    val textColor: String? = null
 )
 
 data class ConciergeThinkingColors(

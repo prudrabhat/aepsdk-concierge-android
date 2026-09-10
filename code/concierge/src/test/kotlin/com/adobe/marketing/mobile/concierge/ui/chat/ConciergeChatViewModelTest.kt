@@ -1364,6 +1364,16 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `handleLinkClick with percent-encoded store-locator geo URL calls tryOpenWithSystemHandler`() = runTest {
+        val geoUrl = "geo:0,0?q=The%20Mall%20At%20Robinson%2C%20Pittsburgh%2C%20PA%2015205-4834"
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick(geoUrl, ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
+
+        verify { tryOpenWithSystemHandler(app, geoUrl) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
     fun `handleLinkClick with mailto scheme calls tryOpenWithSystemHandler`() = runTest {
         val vm = ConciergeChatViewModel(app)
         vm.handleLinkClick("mailto:user@example.com", ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
